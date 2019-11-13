@@ -486,6 +486,8 @@ Entry* tcl_entry_new()
 //  myEntry->mtype      = Method;
 //  myEntry->virt       = Normal;
 //  myEntry->stat       = FALSE;
+  myEntry->docFile    = tcl.file_name;
+  myEntry->inbodyFile = tcl.file_name;
   myEntry->fileName   = tcl.file_name;
   myEntry->lang       = SrcLangExt_Tcl;
   Doxygen::docGroup.initGroupInfo(myEntry);
@@ -534,6 +536,13 @@ static void tcl_name(const QCString &ns0, const QCString &name0, QCString &ns, Q
   {
     ns = "";
     name = myNm;
+  }
+  else if (myNm.length()-myStart == 2)
+  {
+    // ending with :: so get name equal to last component
+    ns = myNm.mid(0,myStart);
+    myStart = ns.findRev("::");
+    name = myNm.mid(myStart+2);
   }
   else
   {
@@ -2146,6 +2155,8 @@ D
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl_protection(tcl.entry_current);
@@ -2188,6 +2199,8 @@ D
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl_protection(tcl.entry_current);
@@ -2225,6 +2238,8 @@ D
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl_protection(tcl.entry_current);
@@ -2260,6 +2275,8 @@ D
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl_protection(tcl.entry_current);
@@ -2293,6 +2310,8 @@ D
   tcl.entry_current->section = Entry::NAMESPACE_SEC;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl.entry_main->moveToSubEntryAndKeep(tcl.entry_current);
@@ -2331,6 +2350,8 @@ D
   tcl.entry_current->section = Entry::CLASS_SEC;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl.entry_main->moveToSubEntryAndKeep(tcl.entry_current);
@@ -2363,6 +2384,8 @@ D
   tcl.entry_current->section = Entry::CLASS_SEC;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl.entry_main->moveToSubEntryAndKeep(tcl.entry_current);
@@ -2415,6 +2438,8 @@ D
     tcl.entry_current->mtype = Method;
     tcl.entry_current->name = myMethod;
     tcl.entry_current->startLine = tcl.line_command;
+    tcl.entry_current->docLine = tcl.line_comment;
+    tcl.entry_current->inbodyLine = tcl.line_comment;
     tcl.entry_current->bodyLine = tcl.line_body0;
     tcl.entry_current->endBodyLine = tcl.line_body1;
     tcl_protection(tcl.entry_current);
@@ -2485,6 +2510,8 @@ D
   tcl.entry_current->section = Entry::VARIABLE_SEC;
   tcl.entry_current->name = myName;
   tcl.entry_current->startLine = tcl.line_command;
+  tcl.entry_current->docLine = tcl.line_comment;
+  tcl.entry_current->inbodyLine = tcl.line_comment;
   tcl.entry_current->bodyLine = tcl.line_body0;
   tcl.entry_current->endBodyLine = tcl.line_body1;
   tcl_protection(tcl.entry_current);
@@ -3074,7 +3101,7 @@ tcl_inf("%s (%d,%d) %d %d\n",myStr.data(),startLine,endLine,isExampleBlock,inlin
   printlex(yy_flex_debug, FALSE, __FILE__, fileDef ? fileDef->fileName().data(): NULL);
 }
 
-bool TclLanguageScanner::needsPreprocessing(const QCString &extension)
+bool TclLanguageScanner::needsPreprocessing(const QCString &extension) const
 {
   (void)extension;
   return FALSE;

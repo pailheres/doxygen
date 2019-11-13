@@ -223,6 +223,7 @@ void LatexCodeGenerator::writeLineNumber(const char *ref,const char *fileName,co
   {
     m_t << l << " ";
   }
+  m_col=0;
 }
 
 
@@ -1919,7 +1920,7 @@ void LatexGenerator::endMemberDescription()
 
 void LatexGenerator::writeNonBreakableSpace(int) 
 {
-  //printf("writeNonBreakbleSpace()\n");
+  //printf("writeNonBreakableSpace()\n");
   if (insideTabbing)
   {
     t << "\\>";

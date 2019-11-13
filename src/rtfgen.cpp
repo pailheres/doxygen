@@ -1952,7 +1952,7 @@ void RTFGenerator::endCodeFragment()
 {
   //newParagraph();
   //styleStack.pop();
-  //printf("RTFGenerator::endCodeFrament() top=%s\n",styleStack.top());
+  //printf("RTFGenerator::endCodeFragment() top=%s\n",styleStack.top());
   //t << rtf_Style_Reset << styleStack.top() << endl;
   //endCodeLine checks is there is still an open code line, if so closes it.
   endCodeLine();
@@ -3052,6 +3052,7 @@ void RTFGenerator::writeLineNumber(const char *,const char *,const char *,int l)
   QCString lineNumber;
   lineNumber.sprintf("%05d",l);
   t << lineNumber << " ";
+  col=0;
 }
 void RTFGenerator::startCodeLine(bool)
 {
