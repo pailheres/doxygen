@@ -1147,7 +1147,7 @@ static bool generateClassMemberLink(CodeOutputInterface &ol,MemberDef *xmd,const
   if (xd && xd->isLinkable())
   {
 
-    //printf("g_currentDefiniton=%p g_currentMemberDef=%p xmd=%p g_insideBody=%d\n",g_currentDefinition,g_currentMemberDef,xmd,g_insideBody);
+    //printf("g_currentDefinition=%p g_currentMemberDef=%p xmd=%p g_insideBody=%d\n",g_currentDefinition,g_currentMemberDef,xmd,g_insideBody);
 
     if (xmd->templateMaster()) xmd = xmd->templateMaster();
 
@@ -2362,6 +2362,16 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
   					  if (--g_sharpCount<=0)
 					  BEGIN ( Bases );
 					}
+<SkipSharp>"\""                         {
+  					  g_code->codify(yytext);
+  					  g_lastStringContext=YY_START;
+                                          BEGIN(SkipString);
+                                        }
+<SkipSharp>"\'"                         {
+  					  g_code->codify(yytext);
+  					  g_lastStringContext=YY_START;
+                                          BEGIN(SkipStringS);
+                                        }
 <Bases>"("                              {
                                           g_code->codify(yytext);
                                           g_sharpCount=1;

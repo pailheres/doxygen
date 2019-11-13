@@ -955,7 +955,7 @@ class AccessStack
  */
 int isAccessibleFrom(const Definition *scope,const FileDef *fileScope,const Definition *item)
 {
-  //printf("<isAccesibleFrom(scope=%s,item=%s itemScope=%s)\n",
+  //printf("<isAccessibleFrom(scope=%s,item=%s itemScope=%s)\n",
   //    scope->name().data(),item->name().data(),item->getOuterScope()->name().data());
 
   static AccessStack accessStack;
@@ -8646,7 +8646,7 @@ bool namespaceHasVisibleChild(const NamespaceDef *nd,bool includeClasses,bool fi
     const NamespaceDef *cnd;
     for (cnli.toFirst();(cnd=cnli.current());++cnli)
     {
-      if (cnd->isLinkableInProject() && cnd->localName().find('@')==-1)
+      if (cnd->isLinkableInProject() && !cnd->isAnonymous())
       {
         return TRUE;
       }

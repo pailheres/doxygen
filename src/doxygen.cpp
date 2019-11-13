@@ -171,6 +171,7 @@ bool             Doxygen::generatingXmlOutput = FALSE;
 bool             Doxygen::markdownSupport = TRUE;
 GenericsSDict   *Doxygen::genericsDict;
 DocGroup         Doxygen::docGroup;
+Preprocessor    *Doxygen::preprocessor = 0;
 
 // locally accessible globals
 static std::unordered_map< std::string, const Entry* > g_classEntries;
@@ -1317,7 +1318,7 @@ static void addClassToContext(const Entry *root)
     //printf("ClassDict.insert(%s)\n",fullName.data());
     Doxygen::classSDict->append(fullName,cd);
 
-    if (cd->isGeneric()) // generics are also stored in a separate dictionary for fast lookup of instantions
+    if (cd->isGeneric()) // generics are also stored in a separate dictionary for fast lookup of instances
     {
       //printf("inserting generic '%s' cd=%p\n",fullName.data(),cd);
       Doxygen::genericsDict->insert(fullName,cd);
@@ -1411,7 +1412,7 @@ static void resolveClassNestingRelations()
                 d->addInnerCompound(aliasCd);
                 QCString aliasFullName = d->qualifiedName()+"::"+aliasCd->localName();
                 Doxygen::classSDict->append(aliasFullName,aliasCd);
-                printf("adding %s to %s as %s\n",qPrint(aliasCd->name()),qPrint(d->name()),qPrint(aliasFullName));
+                //printf("adding %s to %s as %s\n",qPrint(aliasCd->name()),qPrint(d->name()),qPrint(aliasFullName));
                 aliasCd->setVisited(TRUE);
               }
             }
@@ -1604,7 +1605,7 @@ static void processTagLessClasses(ClassDef *rootCd,
             if (type.find(icd->name())!=-1) // matching tag less struct/union
             {
               QCString name = md->name();
-              if (name.at(0)=='@') name = "__unnamed__";
+              if (md->isAnonymous()) name = "__unnamed__";
               if (!prefix.isEmpty()) name.prepend(prefix+".");
               //printf("    found %s for class %s\n",name.data(),cd->name().data());
               ClassDef *ncd = createTagLessInstance(rootCd,icd,name);
@@ -2461,7 +2462,7 @@ static MemberDef *addVariableToFile(
   QCString def;
 
   // determine the definition of the global variable
-  if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@' &&
+  if (nd && !nd->isAnonymous() &&
       !Config_getBool(HIDE_SCOPE_NAMES)
      )
     // variable is inside a namespace, so put the scope before the name
@@ -2616,7 +2617,7 @@ static MemberDef *addVariableToFile(
   addMemberToGroups(root,md);
 
   md->setRefItems(root->sli);
-  if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@')
+  if (nd && !nd->isAnonymous())
   {
     md->setNamespace(nd);
     nd->insertMember(md);
@@ -6540,7 +6541,7 @@ static void findMember(const Entry *root,
 
           // first note that we pass:
           //   (root->tArgLists ? root->tArgLists->last() : 0)
-          // for the template arguments fo the new "member."
+          // for the template arguments for the new "member."
           // this accurately reflects the template arguments of
           // the related function, which don't have to do with
           // those of the related class.
@@ -7027,7 +7028,7 @@ static void findEnums(const Entry *root)
       mnsd=Doxygen::memberNameSDict;
       isGlobal=FALSE;
     }
-    else if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@') // found enum inside namespace
+    else if (nd) // found enum inside namespace
     {
       mnsd=Doxygen::functionNameSDict;
       isGlobal=TRUE;
@@ -7076,7 +7077,7 @@ static void findEnums(const Entry *root)
         baseType.prepend(" : ");
       }
 
-      if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@')
+      if (nd)
       {
         if (isRelated || Config_getBool(HIDE_SCOPE_NAMES))
         {
@@ -7095,7 +7096,7 @@ static void findEnums(const Entry *root)
       // even if we have already added the enum to a namespace, we still
       // also want to add it to other appropriate places such as file
       // or class.
-      if (isGlobal)
+      if (isGlobal && (nd==0 || !nd->isAnonymous()))
       {
         if (!defSet) md->setDefinition(name+baseType);
         if (fd==0 && root->parent())
@@ -7204,7 +7205,7 @@ static void addEnumValuesToEnums(const Entry *root)
       mnsd=Doxygen::memberNameSDict;
       isGlobal=FALSE;
     }
-    else if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@') // found enum inside namespace
+    else if (nd && !nd->isAnonymous()) // found enum inside namespace
     {
       //printf("Enum in namespace '%s'::'%s'\n",nd->name().data(),name.data());
       mnsd=Doxygen::functionNameSDict;
@@ -7312,7 +7313,7 @@ static void addEnumValuesToEnums(const Entry *root)
                     {
                       //printf("found enum value with same name %s in scope %s\n",
                       //    fmd->name().data(),fmd->getOuterScope()->name().data());
-                      if (nd && !nd->name().isEmpty() && nd->name().at(0)!='@')
+                      if (nd && !nd->isAnonymous())
                       {
                         const NamespaceDef *fnd=fmd->getNamespaceDef();
                         if (fnd==nd) // enum value is inside a namespace
@@ -9395,7 +9396,7 @@ static void parseFile(ParserInterface *parser,
     BufStr inBuf(fi.size()+4096);
     msg("Preprocessing %s...\n",fn);
     readInputFile(fileName,inBuf);
-    preprocessFile(fileName,inBuf,preBuf);
+    Doxygen::preprocessor->processFile(fileName,inBuf,preBuf);
   }
   else // no preprocessing
   {
@@ -9497,7 +9498,7 @@ static void parseFiles(const std::unique_ptr<Entry> &root)
       }
     }
   }
-  else // normal pocessing
+  else // normal processing
 #endif
   {
     StringListIterator it(g_inputFiles);
@@ -9588,7 +9589,7 @@ static QDict<void> g_pathsVisited(1009);
 //----------------------------------------------------------------------------
 // Read all files matching at least one pattern in 'patList' in the
 // directory represented by 'fi'.
-// The directory is read iff the recusiveFlag is set.
+// The directory is read iff the recursiveFlag is set.
 // The contents of all files is append to the input string
 
 int readDir(QFileInfo *fi,
@@ -10078,7 +10079,7 @@ void initDoxygen()
   portable_correct_path();
 
   Doxygen::runningTime.start();
-  initPreprocessor();
+  Doxygen::preprocessor = new Preprocessor();
 
   Doxygen::parserManager = new ParserManager;
   Doxygen::parserManager->registerDefaultParser(         new FileParser);
@@ -10182,7 +10183,7 @@ void cleanUpDoxygen()
   delete Doxygen::globalScope;
   delete Doxygen::xrefLists;
   delete Doxygen::parserManager;
-  cleanUpPreprocessor();
+  delete Doxygen::preprocessor;
   delete theTranslator;
   delete g_outputList;
   Mappers::freeMappers();
@@ -10662,7 +10663,7 @@ void adjustConfiguration()
   while (s)
   {
     QFileInfo fi(s);
-    addSearchDir(fi.absFilePath().utf8());
+    Doxygen::preprocessor->addSearchDir(fi.absFilePath().utf8());
     s=includePath.next();
   }
 
@@ -11266,7 +11267,6 @@ void parseInput()
 
   // we are done with input scanning now, so free up the buffers used by flex
   // (can be around 4MB)
-  preFreeScanner();
   scanFreeScanner();
   pyscanFreeScanner();
 
@@ -11924,7 +11924,7 @@ void generateOutput()
 
   cleanUpDoxygen();
 
-  finializeSearchIndexer();
+  finalizeSearchIndexer();
 //  Doxygen::symbolStorage->close();
   QDir thisDir;
   thisDir.remove(Doxygen::objDBFileName);
