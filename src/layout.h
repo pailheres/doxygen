@@ -148,7 +148,16 @@ struct LayoutNavEntry
       FileGlobals,
       Examples,
       User,
-      UserGroup
+      UserGroup,
+      Requirements,
+      RequirementsMain,
+      RequirementsGraphs,
+      RequirementsList,
+      RequirementsList_safety,
+      RequirementsList_safety_critical,
+      RequirementsList_use_case,
+      RequirementsList_test_case,
+      RequirementsUnsatisfied
     };
     LayoutNavEntry(LayoutNavEntry *parent,Kind k,bool vs,const QCString &bf, 
                    const QCString &tl,const QCString &intro,bool prepend=FALSE) 
@@ -189,6 +198,7 @@ class LayoutDocManager
     enum LayoutPart
     {
       Class, Namespace, File, Group, Directory,
+      Requirement,
       NrParts
     };
     /** Returns a reference to this singleton. */

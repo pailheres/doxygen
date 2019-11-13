@@ -23,6 +23,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <assert.h>
 #include <ctype.h>
 
@@ -132,6 +133,16 @@ static bool handleParBlock(const QCString &, const QCStringList &);
 static bool handleEndParBlock(const QCString &, const QCStringList &);
 static bool handleParam(const QCString &, const QCStringList &);
 static bool handleRetval(const QCString &, const QCStringList &);
+
+static bool handleReq_Sat(const QCString &, const QCStringList &);
+static bool handleReq_Test(const QCString &, const QCStringList &);
+static bool handleTest_List_Item(const QCString &, const QCStringList &);
+static bool handleReq(const QCString &, const QCStringList &);
+static bool handleReq_Main(const QCString &, const QCStringList &);
+static bool handleReq_Co(const QCString &, const QCStringList &);
+static bool handleReq_Ref(const QCString &, const QCStringList &);
+static bool handleSource_Line(const QCString &, const QCStringList &);
+static bool handleDot_Graph(const QCString &, const QCStringList &);
 
 static const char *stateToString(int state);
 
@@ -283,6 +294,15 @@ static DocCmdMap docCmdMap[] =
   { "snippet",         0,                       TRUE  },
   { "snippetlineno",   0,                       TRUE  },
   { "noop",            &handleNoop,             TRUE },
+  { "req_sat",         &handleReq_Sat,          FALSE },
+  { "req_test",        &handleReq_Test,         FALSE },
+  { "test_list_item",  &handleTest_List_Item,   FALSE },
+  { "req",             &handleReq,              TRUE },
+  { "req_main",        &handleReq_Main,         TRUE },
+  { "req_co",          &handleReq_Co,           TRUE },
+  { "req_ref",         &handleReq_Ref,          FALSE },
+  { "source_line",     &handleSource_Line,      FALSE },
+  { "dot_graph",       &handleDot_Graph,        TRUE },
   { 0, 0, FALSE }
 };
 
@@ -359,6 +379,9 @@ enum XRefKind
   XRef_Test,
   XRef_Bug,
   XRef_Deprecated,
+  XRef_Req_Sat,
+  XRef_Req_Test,
+  XRef_Test_List_Item,
   XRef_None
 };
 
@@ -481,6 +504,7 @@ static bool getDocSectionName(int s)
     case Entry::DIRDOC_SEC:
     case Entry::EXAMPLE_SEC:
     case Entry::MEMBERGRP_SEC:
+    case Entry::REQDOC_SEC:
       return TRUE;
     default: 
       return FALSE;
@@ -539,7 +563,7 @@ static void addXRefItem(const char *listName,const char *itemTitle,
   {
     refList = new RefList(listName,listTitle,itemTitle);
     Doxygen::xrefLists->insert(listName,refList);
-    //printf("new list!\n");
+    printf("new list : %s\n", listName);
   }
   for (const ListItemInfo &item : current->sli)
   {
@@ -761,6 +785,27 @@ static inline void setOutput(OutputContext ctx)
 		    xrefAppendToPrev
 		   );
 	break;
+      case XRef_Req_Sat:
+        addXRefItem("req_sat",
+                    "Requirement Satisfied",
+                    "Requirements Satisfied List",
+                    xrefAppendToPrev
+                   );
+        break;
+      case XRef_Req_Test:
+        addXRefItem("req_test",
+                    "Requirement tested",
+                    "Requirements Tested List",
+                    xrefAppendToPrev
+                   );
+        break;
+      case XRef_Test_List_Item:
+        addXRefItem("test_list_item",
+                    "Used in Test",
+                    "Test Using List",
+                    xrefAppendToPrev
+                   );
+        break;
       case XRef_Item:  // user defined list
 	addXRefItem(xrefItemKey,
 	            xrefItemTitle,
@@ -911,7 +956,7 @@ DCMD9     ("see"|"since"|"subsection"|"subsubsection")
 DCMD10    ("throw"|"until"|"verbatim")
 DCMD11    ("verbinclude"|"version"|"warning")
 DETAILEDCMD {CMD}({DCMD1}|{DCMD2}|{DCMD3}|{DCMD4}|{DCMD5}|{DCMD6}|{DCMD7}|{DCMD8}|{DCMD9}|{DCMD10}|{DCMD11})
-XREFCMD   {CMD}("bug"|"deprecated"|"test"|"todo"|"xrefitem")  
+XREFCMD   {CMD}("bug"|"deprecated"|"req_sat"|"req_test"|"test_list_item"|"test"|"todo"|"xrefitem")  
 PRE       [pP][rR][eE]
 TABLE	  [tT][aA][bB][lL][eE]
 P	  [pP]
@@ -996,6 +1041,18 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 %x      GuardExpr
 %x      CdataSection
 %x      Noop
+%x      Req_Param1
+%x      Req_Param2
+%x      Req_MainParam1
+%x      Req_CoParam1
+%x      Req_SatParam1
+%x      Req_TestParam1
+%x      Req_TestParam2
+%x      Req_RefParam1
+%x      Source_LineParam1
+%x      Source_LineParam2
+%x      Test_List_ItemParam1
+%x      Dot_GraphParam1
 
 %%
 
@@ -1655,6 +1712,304 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
                                         }
 <FileDocArg1>.				{ // ignore other stuff
   					}
+
+  /* --------- handle arguments of the file/dir/example command ------------ */
+
+<Req_Param1>[A-Za-z0-9_\-\.]+       { // first argument; name
+                                      QCString bla;
+                                      bla = substitute(yytext,"-","_");
+                                      bla = substitute(bla,".","_");
+                                      bla = "requirement_" + convertNameToFile(bla);
+                                      SectionInfo *si = new SectionInfo(bla,0,"topOfReq",0,SectionInfo::Anchor,0);
+                                      Doxygen::sectionDict->append(bla,si);
+                                      current->anchors.push_back(si);
+
+                                      bla = "@anchor "+bla;
+                                      addOutput(bla);
+
+                                      current->name = stripQuotes(yytext);
+                                      BEGIN( Req_Param2 );
+                                    }
+<Req_Param1>{LC}    { yyLineNr++; 
+                      addOutput('\n');
+                    }
+<Req_Param1>.       { // ignore other stuff
+                    }
+<Req_Param1>{DOCNL} { // no file name specfied
+                      if (*yytext=='\n') yyLineNr++;
+                      addOutput('\n');
+                      BEGIN( Comment );
+                    }
+<Req_Param2>out_of_scope  { // second argument
+                             yyLineNr++;
+                             current->args = yytext;
+                             QCString bla;
+                             bla = substitute(yytext,"-","_");
+                             BEGIN( Comment );
+                          }
+<Req_Param2>{LC}  { // line continuation
+                    yyLineNr++; 
+                    addOutput('\n');
+                  }
+<Req_Param2>.     { // ignore other stuff
+                  }
+<Req_Param2>{DOCNL} { // missing argument
+                      if (*yytext=='\n') yyLineNr++;
+                      addOutput('\n');
+                      BEGIN( Comment );
+                    }
+
+  /* --------- handle arguments of the req_main command ------------ */
+<Req_MainParam1>{LC} { yyLineNr++; 
+                       addOutput('\n');
+                     }
+<Req_MainParam1>.  { // ignore other stuff
+                   }
+<Req_MainParam1>{DOCNL} { // no file name specfied
+                          if (*yytext=='\n') yyLineNr++;
+                          addOutput('\n');
+                          BEGIN( Comment );
+                        }
+
+  /* --------- handle arguments of dot_graph command ------------ */
+<Dot_GraphParam1>[A-Za-z0-9_\-\.]+  { // first argument; name
+                                      current->name = stripQuotes(yytext);
+                                    }
+<Dot_GraphParam1>{LC} { yyLineNr++; 
+                        addOutput('\n');
+                      }
+<Dot_GraphParam1>. { // ignore other stuff
+                   }
+<Dot_GraphParam1>{DOCNL}  { // no file name specfied
+                            if (*yytext=='\n') yyLineNr++;
+                            addOutput('\n');
+                            BEGIN( Comment );
+                          }
+
+   /* --------- handle arguments of the req_co command ------------ */
+<Req_CoParam1>[A-Za-z0-9_\-\.]+   { // first argument
+                                      if (current->section == Entry::REQDOC_SEC) {
+                                        QCString bla;
+                                        bla = substitute(yytext,"-","_");
+                                        bla = substitute(bla,".","_");
+                                        bla = "requirement_" + convertNameToFile(bla);
+                                        current->args = bla;
+                                        current->args = yytext;
+                                      }
+                                      BEGIN( Comment );
+                                  }
+<Req_CoParam1>{LC}  { // line continuation
+                      yyLineNr++; 
+                      addOutput('\n');
+                    }
+<Req_CoParam1>.  { // ignore other stuff
+                   addOutput(*yytext);
+                 }
+<Req_CoParam1>{DOCNL}   { // missing arguments 
+                          warn(yyFileName,yyLineNr,"warning: Missing argument of \\req_co");
+                          if (*yytext=='\n') yyLineNr++;
+                          addOutput('\n');
+                          inContext = OutputDoc;
+                          BEGIN( Comment );
+                        }
+
+   /* --------- handle arguments of the req_sat command ------------ */
+<Req_SatParam1>[A-Za-z0-9_\-\.]+    { // first argument
+                                      QCString bla;
+                                      bla = substitute(yytext,"-","_");
+                                      bla = substitute(bla,".","_");
+                                      std::string tmp_blabla(bla);
+                                      bla = "\\ref requirement_" + convertNameToFile(bla) + " \"" + yytext + "\"";
+                                      setOutput(OutputXRef);
+                                      addOutput(bla);
+                                      BEGIN( Comment );
+}
+<Req_SatParam1>{LC}  { // line continuation
+                       yyLineNr++; 
+                       addOutput('\n');
+                     }
+<Req_SatParam1>.    { // ignore other stuff
+                      addOutput(*yytext);
+                    }
+<Req_SatParam1>{DOCNL}   { // missing arguments 
+                           warn(yyFileName,yyLineNr, "warning: Missing argument of \\req_sat");
+                           if (*yytext=='\n') yyLineNr++;
+                           addOutput('\n');
+                           inContext = OutputDoc;
+                           BEGIN( Comment );
+                         }
+
+  /* --------- handle arguments of the req_test command ------------ */
+<Req_TestParam1>\"[A-Za-z0-9_\-\.\t ,]*\"   {
+                                      // first argument
+                                      QCString bli = yytext;
+                                      QCString blo;
+                                      blo = stripQuotes(yytext);
+                                      blo = substitute(blo," ","");
+                                      blo = substitute(blo,"\t","");
+
+                                      char bloblo[2048];
+                                      char* blobli = &bloblo[0];
+                                      qstrcpy(blobli, blo);
+
+                                      QCString bla;
+                                      QCString bla2;
+                                      if (blo.length() > 0 ) {
+                                        QCStringList qrl=QCStringList::split(",",blo,FALSE);
+                                        for (int tmp_ii=0; tmp_ii<qrl.count(); tmp_ii++) {
+                                          QCString myString=qrl[tmp_ii];
+                                          bla = substitute(myString,"-","_");
+                                          bla = substitute(bla,".","_");
+                                          bla2 += "\\ref requirement_" + convertNameToFile(bla) + " \"" + myString + "\" ";
+                                        }
+                                      }
+                                      else {
+                                        bla2 = "unreferenced";
+                                      }
+
+                                      setOutput(OutputXRef);
+                                      addOutput(bla2);
+                                      addOutput(": ");
+                                      //addOutput(theTranslator->trDefinedAtLineInSourceFile() + " : ");
+                                      BEGIN( Req_TestParam2 );
+                                    }
+<Req_TestParam1>{LC}                {
+                                      // line continuation
+                                      yyLineNr++;
+                                      addOutput('\n');
+                                    }
+<Req_TestParam1>.                   {
+                                    }
+<Req_TestParam1>{DOCNL}             {
+                                      // missing arguments 
+                                      warn(yyFileName,yyLineNr, "warning: Missing argument of \\req_test");
+                                      if (*yytext=='\n') { yyLineNr++; }
+                                      addOutput('\n');
+                                      inContext = OutputDoc;
+                                      BEGIN( Comment );
+                                    }
+<Req_TestParam2>[ ]+                {
+                                    }
+<Req_TestParam2>["]+                {
+                                    }
+<Req_TestParam2>.*                  { // second argument
+                                      QCString bli;
+                                      bli = yytext;
+                                      QCString blo;
+                                      blo = substitute(bli,"\"","");
+                                      blo = substitute(blo,"\\r\\n",".");
+                                      blo = substitute(blo,"\\n\\r",".");
+                                      blo = substitute(blo,"\\r",".");
+                                      blo = substitute(blo,"\\n",".");
+                                      blo = substitute(blo,"\\","");
+
+                                      //char bloblo[2048];
+                                      //char* blobli = &bloblo[0];
+                                      //qstrcpy(blobli, blo);
+
+  addOutput(blo);
+                                      BEGIN(Comment);
+                                    }
+<Req_TestParam2>{LC}                {
+                                      // line continuation
+                                      yyLineNr++;
+                                      addOutput('\n');
+                                    }
+<Req_TestParam2>.                   {
+                                      // ignore other stuff
+                                      QCString bli;
+                                      bli = stripQuotes(yytext);
+                                    }
+<Req_TestParam2>{DOCNL}             {
+                                      // missing arguments 
+                                      warn(yyFileName,yyLineNr, "warning: Missing argument of \\req_test");
+                                      if (*yytext=='\n') { yyLineNr++; }
+                                      addOutput('\n');
+                                      inContext = OutputDoc;
+                                      BEGIN( Comment );
+                                    }
+  /* --------- handle arguments of the test_list_item command ------------ */
+<Test_List_ItemParam1>[A-Za-z0-9_\-\.\\\s]+   {
+                                      setOutput(OutputXRef);
+                                      QCString bli = yytext;
+                                      bli = "\\ref " + bli;
+                                      addOutput(bli);
+                                      BEGIN( Comment );
+                                    }
+<Test_List_ItemParam1>{LC}          {
+                                      yyLineNr++;
+                                      addOutput('\n');
+                                    }
+<Test_List_ItemParam1>{DOCNL}       {
+                                      warn(yyFileName,yyLineNr, "warning: Missing argument of \\test_list_item");
+                                      if (*yytext=='\n') { yyLineNr++; }
+                                      addOutput('\n');
+                                      inContext = OutputDoc;
+                                      BEGIN( Comment );
+                                    }
+<Test_List_ItemParam1>.             {
+                                    }
+<Test_List_ItemParam1>[A-Za-z0-9_\-\.\\\s]+   {
+                                      setOutput(OutputXRef);
+                                      QCString bli = yytext;
+                                      bli = "\\ref " + bli;
+                                      addOutput(bli);
+                                      BEGIN( Comment );
+                                    }
+
+  /* --------- handle arguments of the req_ref command ------------ */
+<Req_RefParam1>[A-Za-z0-9_\-\.]+   { // first argument
+                                     QCString bla;
+                                     bla = substitute(yytext,"-","_");
+                                     bla = substitute(bla,".","_");
+
+                                     bla = "\\ref requirement_" + convertNameToFile(bla) + " \"" + yytext + "\"";
+                                     addOutput(bla);
+                                     BEGIN( Comment );
+                                   }
+<Req_RefParam1>{LC}     { // line continuation
+                          yyLineNr++; 
+                          addOutput('\n');
+                        }
+<Req_RefParam1>.        { // ignore other stuff
+                          addOutput(*yytext);
+                        }
+<Req_RefParam1>{DOCNL}  { // missing arguments 
+                          warn(yyFileName,yyLineNr,"warning: Missing argument of \\req_ref");
+                          if (*yytext=='\n') yyLineNr++;
+                          addOutput('\n');
+                          inContext = OutputDoc;
+                          BEGIN( Comment );
+                        }
+
+  /* --------- handle arguments of the source_line command ------------ */
+<Source_LineParam1>{DOCNL}  { // no file name specfied
+                              if (*yytext=='\n') yyLineNr++;
+                              addOutput('\n');
+                              BEGIN( Comment );
+                            }
+<Source_LineParam1>{FILE}   { // first argument; name
+                              QCString bla;
+                              bla = "\\link " + convertNameToFile(yytext) + "_source \\endlink";
+                              addOutput(bla);
+                              BEGIN( Source_LineParam2 );
+                            }
+<Source_LineParam1>{LC}     { yyLineNr++; 
+                              addOutput('\n');
+                            }
+<Source_LineParam1>.        { // ignore other stuff
+                            }
+<Source_LineParam2>[0-9]+   { // first argument
+//                              current->bodyLine = yytext;
+//                              QCString anchorStr = getSourceAnchor();
+//                              addOutput(anchorStr);
+                              QCString bli = yytext;
+                              addOutput(' ');
+                              addOutput(bli);
+                              BEGIN( Comment );
+                            }
+<Source_LineParam2>.        { // ignore other stuff
+                            }
 
   /* --------- handle arguments of the xrefitem command ------------ */
 
@@ -3085,6 +3440,81 @@ static bool handleCopyDoc(const QCString &, const QCStringList &)
   addOutput("\\copybrief ");
   g_copyDocArg.resize(0);
   BEGIN(CopyDoc);
+  return FALSE;
+}
+
+static bool handleReq(const QCString &, const QCStringList &)
+{
+  bool stop=makeStructuralIndicator(Entry::REQDOC_SEC);
+  if (!stop) 
+  {
+    current->name = yyFileName;
+  }
+  BEGIN( Req_Param1 );
+  return stop;
+}
+
+static bool handleReq_Co(const QCString &, const QCStringList &)
+{
+  BEGIN( Req_CoParam1 );
+  return FALSE;
+}
+
+static bool handleReq_Main(const QCString &, const QCStringList &)
+{
+  bool stop=makeStructuralIndicator(Entry::REQDOC_MAIN);
+  if (!stop) 
+  {
+    current->name = yyFileName;
+  }
+  BEGIN( Req_MainParam1 );
+  return stop;
+}
+
+static bool handleDot_Graph(const QCString &, const QCStringList &)
+{
+  bool stop=makeStructuralIndicator(Entry::DOT_GRAPH_SEC);
+  if (!stop) 
+  {
+    current->name = yyFileName;
+  }
+  BEGIN( Dot_GraphParam1 );
+  return stop;
+}
+
+static bool handleReq_Sat(const QCString &, const QCStringList &)
+{
+  newXRefKind = XRef_Req_Sat;
+  BEGIN(Req_SatParam1);
+  xrefKind = XRef_Req_Sat;
+  return FALSE;
+}
+
+static bool handleReq_Test(const QCString &, const QCStringList &)
+{
+  newXRefKind = XRef_Req_Test;
+  BEGIN(Req_TestParam1);
+  xrefKind = XRef_Req_Test;
+  return FALSE;
+}
+
+static bool handleTest_List_Item(const QCString &, const QCStringList &)
+{
+  newXRefKind = XRef_Test_List_Item;
+  BEGIN(Test_List_ItemParam1);
+  xrefKind = XRef_Test_List_Item;
+  return FALSE;
+}
+
+static bool handleReq_Ref(const QCString &, const QCStringList &)
+{
+  BEGIN(Req_RefParam1);
+  return FALSE;
+}
+
+static bool handleSource_Line(const QCString &, const QCStringList &)
+{
+  BEGIN(Source_LineParam1);
   return FALSE;
 }
 

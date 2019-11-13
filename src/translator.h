@@ -116,6 +116,32 @@ class Translator
     virtual QCString trModulesDescription() = 0;
     //virtual QCString trNoDescriptionAvailable() = 0;
 
+    virtual QCString trRequirements() { return "Requirements"; }
+    virtual QCString trRequirementsDocumentation() { return "Requirements Documentation"; }
+    virtual QCString trRequirementsDescription() { return "A Requirements page : "; }
+    virtual QCString trRequirementsMain() { return "Reqs Main"; }
+    virtual QCString trRequirementsMainDescription() { return "Requirements Mainpage : "; }
+    virtual QCString trRequirementsMainDocumentation() { return "Requirements Documentation"; }
+    virtual QCString trRequirementsGraphList() { return "Reqs Graphs"; }
+    virtual QCString trRequirementsGraphListDescription() { return "A List of all Requirements graphs: "; }
+    virtual QCString trRequirementsList() { return "Requirements List"; }
+    virtual QCString trRequirementsListDescription() { return "A List of all Requirements : "; }
+    virtual QCString trRequirementsList_safety() { return "Reqs List (Safety)"; }
+    virtual QCString trRequirementsListDescription_safety() { return "Safety requirements list is a serie of requirements that must be achive for a safe operation of the system."; }
+    virtual QCString trRequirementsList_safety_critical() { return "Reqs List (Safety Critical)"; }
+    virtual QCString trRequirementsListDescription_safety_critical() { return "Safety critical requirements list is a serie of requirements regarding software module that achive the safety of the system. Example: Variables or timing that must be double check for integrity."; }
+    virtual QCString trRequirementsList_use_case() { return "Reqs List (Use Case)"; }
+    virtual QCString trRequirementsList_test_case() { return "Reqs List (Test Case)"; }
+    virtual QCString trRequirementsListDescription_use_case() { return "Use case requirements list is a serie of requirements that are needed for proper function of the system. They represent the system from an actor-action point of view."; }
+    virtual QCString trRequirementsListDescription_test_case() { return "Test case requirements list is a serie of requirements for proper test of the system"; }
+    virtual QCString trRequirementsUnsatisfied() { return "Unsatisfied/Untested Reqs"; }
+    virtual QCString trRequirementsUnsatisfiedDescription() { return "List all Unsatisfied and/or Untested Requirements : "; }
+    virtual QCString trRequirementSatisfiedBy() { return "Satisfied By"; }
+    virtual QCString trRequirementTestedBy() { return "Tested By"; }
+    virtual QCString trRequirementExtendedBy() { return "Extended By (childs)"; }
+    virtual QCString trRequirementExtend() { return "Extend (parent)"; }
+    virtual QCString trRequirementExtractedFrom() { return "Requirement Extracted from Document"; }
+
     // index titles (the project name is prepended for these)
 
     virtual QCString trDocumentation() = 0;

@@ -64,6 +64,8 @@
 #include "dirdef.h"
 #include "htmlentity.h"
 
+#include "requirement.h"
+
 #define ENABLE_TRACINGSUPPORT 0
 
 #if defined(_OS_MAC_) && ENABLE_TRACINGSUPPORT
@@ -6718,7 +6720,9 @@ void addRefItem(const std::vector<ListItemInfo> &sli,
            (lii.type!="todo"       || Config_getBool(GENERATE_TODOLIST)) &&
            (lii.type!="test"       || Config_getBool(GENERATE_TESTLIST)) &&
            (lii.type!="bug"        || Config_getBool(GENERATE_BUGLIST))  &&
-           (lii.type!="deprecated" || Config_getBool(GENERATE_DEPRECATEDLIST))
+           (lii.type!="deprecated" || Config_getBool(GENERATE_DEPRECATEDLIST)) &&
+           (lii.type!="req_sat"    || Config_getBool(GENERATE_REQ_SATLIST)) &&
+           (lii.type!="req_test"   || Config_getBool(GENERATE_REQ_TESTLIST))
           )
          )
       {
@@ -6733,6 +6737,12 @@ void addRefItem(const std::vector<ListItemInfo> &sli,
 
         refList->insertIntoList(key,item);
 
+        if (lii.type == "req_sat") {
+          Doxygen::reqSatList->f_addFromRefItem(*(item));
+        }
+        if (lii.type == "req_test") {
+          Doxygen::reqTestList->f_addFromRefItem(*(item));
+        }
       }
     }
   }

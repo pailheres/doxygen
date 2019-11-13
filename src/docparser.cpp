@@ -2167,7 +2167,9 @@ bool DocXRefItem::parse()
        (m_key!="todo"       || Config_getBool(GENERATE_TODOLIST)) && 
        (m_key!="test"       || Config_getBool(GENERATE_TESTLIST)) && 
        (m_key!="bug"        || Config_getBool(GENERATE_BUGLIST))  && 
-       (m_key!="deprecated" || Config_getBool(GENERATE_DEPRECATEDLIST))
+       (m_key!="deprecated" || Config_getBool(GENERATE_DEPRECATEDLIST)) &&
+       (m_key!="req_sat"    || Config_getBool(GENERATE_REQ_SATLIST)) &&
+       (m_key!="req_test"   || Config_getBool(GENERATE_REQ_TESTLIST))
       ) 
      )
   {

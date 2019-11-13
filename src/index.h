@@ -129,7 +129,14 @@ enum IndexSections
   isExampleDocumentation,
   isPageDocumentation,
   isPageDocumentation2,
-  isEndIndex
+  isEndIndex,
+
+  isRequirementsMainDocumentation,
+  isRequirementsList,
+  isRequirementsList_safety,
+  isRequirementsList_safety_critical,
+  isRequirementsList_use_case,
+  isRequirementsList_test_case,
 };
 
 enum HighlightedItem
@@ -164,7 +171,18 @@ enum HighlightedItem
   HLI_StructVisible,
   HLI_ExceptionVisible,
   HLI_NamespaceVisible,
-  HLI_FileVisible
+  HLI_FileVisible,
+
+  HLI_Requirements,
+  HLI_RequirementsMain,
+  HLI_RequirementsGraphs,
+  HLI_RequirementsList,
+  HLI_Req_safety,
+  HLI_Req_safety_critical,
+  HLI_Req_use_case,
+  HLI_Req_test_case,
+  HLI_RequirementsUnsatisfied,
+
 };
 
 enum ClassMemberHighlight

@@ -115,6 +115,9 @@ class Entry
       EXPORTED_INTERFACE_SEC = 0x19000000,
       INCLUDED_SERVICE_SEC   = 0x1A000000,
       EXAMPLE_LINENO_SEC     = 0x1B000000,
+      REQDOC_SEC = 0x1C000000,
+      REQDOC_MAIN = 0x1D000000,
+      DOT_GRAPH_SEC = 0x1E000000,
     };
 
     // class specifiers (add new items to the end)
