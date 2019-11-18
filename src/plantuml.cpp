@@ -407,12 +407,13 @@ void PlantumlManager::insert(const QCString &key, const QCString &value,
 
   m_currentPlantumlAllContent+=puContent;
 
-  find = m_cachedPlantumlAllContent.find(puContent);
-  Debug::print(Debug::Plantuml,0,"*** %s find: %d\n","PlantumlManager::addPlantumlContent",find);
-  if (find >=0)
-  {         // matched in cache. so we skip to run java for this plantuml
-      return ;
-  }
+//had to remove this in order to have UML graph generated when generation both Latex and HTML docs at the same time
+//  find = m_cachedPlantumlAllContent.find(puContent);
+//  Debug::print(Debug::Plantuml,0,"*** %s find: %d\n","PlantumlManager::addPlantumlContent",find);
+//  if (find >=0)
+//  {         // matched in cache. so we skip to run java for this plantuml
+//      return ;
+//  }
 
   switch (format)
   {
