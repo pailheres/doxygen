@@ -1070,6 +1070,18 @@ void LatexGenerator::startIndexSection(IndexSections is)
       break;
     case isEndIndex:
       break;
+    case isRequirementsMainDocumentation:
+      {
+        if (compactLatex) t << "\\section"; else t << "\\chapter";
+        t << "{"; //Requirements Main Documentation}\n";
+      }
+      break;
+    case isRequirementsList:
+      {
+        if (compactLatex) t << "\\section"; else t << "\\chapter";
+        t << "{"; //Requirements List}\n";
+      }
+      break;
   }
 }
 
@@ -1316,6 +1328,34 @@ void LatexGenerator::endIndexSection(IndexSections is)
                    convertToLaTeX(Config_getString(PROJECT_NUMBER)),
                    convertToLaTeX(Config_getString(PROJECT_BRIEF)));
       }
+      break;
+    case isRequirementsMainDocumentation:
+      t << "}\n\\label{requirements}\n";
+      if (Config_getBool(PDF_HYPERLINKS)) t << "\\hypertarget{requirements}{}\n";
+      t << "\\input{requirements}\n";
+      t << "\\input{requirementsgraphs}\n";
+//      t << "\\input{requirementslist}\n";
+      t << "\\input{requirementsunsatisfied}\n";
+      break;
+    case isRequirementsList_safety:
+      t << "}\n\\label{requirementslist_safety}\n";
+      if (Config_getBool(PDF_HYPERLINKS)) t << "\\hypertarget{requirementslist_safety}{}\n";
+      t << "\\input{requirementslist_safety}\n";
+      break;
+    case isRequirementsList_safety_critical:
+      t << "}\n\\label{requirementslist_safety_critical}\n";
+      if (Config_getBool(PDF_HYPERLINKS)) t << "\\hypertarget{requirementslist_safety_critical}{}\n";
+      t << "\\input{requirementslist_safety_critical}\n";
+      break;
+    case isRequirementsList_use_case:
+      t << "}\n\\label{requirementslist_use_case}\n";
+      if (Config_getBool(PDF_HYPERLINKS)) t << "\\hypertarget{requirementslist_use_case}{}\n";
+      t << "\\input{requirementslist_use_case}\n";
+      break;
+    case isRequirementsList_test_case:
+      t << "}\n\\label{requirementslist_test_case}\n";
+      if (Config_getBool(PDF_HYPERLINKS)) t << "\\hypertarget{requirementslist_test_case}{}\n";
+      t << "\\input{requirementslist_test_case}\n";
       break;
   }
 }
@@ -1945,51 +1985,80 @@ void LatexGenerator::writeNonBreakableSpace(int)
 // - endDescTableRow()
 // endDescTable()
 
+//see this bug, https://github.com/doxygen/doxygen/issues/6332, it still make the same problem with embedded table in enum item description
+//void LatexGenerator::startDescTable(const char *title)
+//{
+//  incUsedTableLevels();
+//  t << "\\begin{DoxyEnumFields}{" << title << "}" << endl;
+//}
+//
+//void LatexGenerator::endDescTable()
+//{
+//  decUsedTableLevels();
+//  t << "\\end{DoxyEnumFields}" << endl;
+//}
+//
+//void LatexGenerator::startDescTableRow()
+//{
+//  // this is needed to prevent the \hypertarget, \label, and \index commands from messing up
+//  // the row height (based on http://tex.stackexchange.com/a/186102)
+//  t << "\\raisebox{\\heightof{T}}[0pt][0pt]{";
+//}
+//
+//void LatexGenerator::endDescTableRow()
+//{
+//}
+//
+//void LatexGenerator::startDescTableTitle()
+//{
+//  t << "}";
+//}
+//
+//void LatexGenerator::endDescTableTitle()
+//{
+//}
+//
+//void LatexGenerator::startDescTableData()
+//{
+//  t << "&";
+//}
+//
+//void LatexGenerator::endDescTableData()
+//{
+//  t << "\\\\\n\\hline\n" << endl;
+//}
+//
+//void LatexGenerator::lastIndexPage() 
+//{
+//}
+//
 void LatexGenerator::startDescTable(const char *title)
 {
-  incUsedTableLevels();
-  t << "\\begin{DoxyEnumFields}{" << title << "}" << endl;
+  t << "\\begin{Desc}\n\\item[";
+  docify(title);
+  t << "]";
+  t << "\\begin{description}" << endl;
 }
-
 void LatexGenerator::endDescTable()
 {
-  decUsedTableLevels();
-  t << "\\end{DoxyEnumFields}" << endl;
+  t << "\\end{description}" << endl;
+  t << "\\end{Desc}" << endl;
 }
-
-void LatexGenerator::startDescTableRow()
-{
-  // this is needed to prevent the \hypertarget, \label, and \index commands from messing up
-  // the row height (based on http://tex.stackexchange.com/a/186102)
-  t << "\\raisebox{\\heightof{T}}[0pt][0pt]{";
-}
-
-void LatexGenerator::endDescTableRow()
-{
-}
-
+void LatexGenerator::startDescTableRow() {}
+void LatexGenerator::endDescTableRow() {}
 void LatexGenerator::startDescTableTitle()
 {
-  t << "}";
+  t << "\\item[{\\em " << endl;
 }
-
 void LatexGenerator::endDescTableTitle()
 {
+  t << "}]";
 }
+void LatexGenerator::startDescTableData() {}
+void LatexGenerator::endDescTableData() {}
+void LatexGenerator::lastIndexPage() {}
 
-void LatexGenerator::startDescTableData()
-{
-  t << "&";
-}
 
-void LatexGenerator::endDescTableData()
-{
-  t << "\\\\\n\\hline\n" << endl;
-}
-
-void LatexGenerator::lastIndexPage() 
-{
-}
 
 
 void LatexGenerator::startMemberList()  

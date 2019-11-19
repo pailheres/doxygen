@@ -3884,6 +3884,352 @@ static void writePageIndex(OutputList &ol)
 
 //----------------------------------------------------------------------------
 
+static void writeReqGraph(OutputList &ol)
+{
+  if (Doxygen::req_GraphSDict->count() > 0) {
+    ol.pushGeneratorState();
+    ol.disable(OutputGenerator::Man);
+
+    LayoutNavEntry *lne;// = LayoutDocManager::instance().rootNavEntry()->find(LayoutNavEntry::RequirementsList);
+    lne = LayoutDocManager::instance().rootNavEntry()->find(LayoutNavEntry::RequirementsGraphs); // fall back
+    QCString title = lne ? lne->title() : theTranslator->trRequirementsGraphList();
+    bool addToIndex = lne==0 || lne->visible();
+
+    startFile(ol,"requirementsgraphs",0,title,HLI_RequirementsGraphs);
+
+    startTitle(ol,0);
+    ol.parseText(title);
+    endTitle(ol,0,0);
+    ol.startContents();
+    ol.startTextBlock();
+
+    ol.parseText(theTranslator->trRequirementsGraphListDescription());
+    ol.writeString(" Graphs were extracted from the architecture and design files.");
+
+    ol.endTextBlock();
+    ol.startItemList();
+    Dot_GraphSDict::Iterator pdi(*Doxygen::req_GraphSDict);
+    Dot_Graph *pd=0;
+    for (pdi.toFirst();(pd=pdi.current());++pdi)
+    {
+      ol.startItemListItem();
+      pd->writeDetailedDescription(ol, pd->name());
+      QCString n=pd->getOutputFileBase();
+//      if (!pd->title().isEmpty())
+//      {
+//        ol.writeObjectLink(0,n,0,pd->title());
+//        if (addToIndex)
+//        {
+//          Doxygen::indexList->addContentsItem(FALSE,filterTitle(pd->title()),pd->getReference(),n,0,FALSE,TRUE);
+//        }
+//      }
+//      else
+//      {
+        if (addToIndex)
+        {
+          Doxygen::indexList->addContentsItem(FALSE,pd->name(),pd->getReference(),n,0,FALSE,TRUE);
+        }
+//      }
+      ol.endItemListItem();
+      ol.writeString("\n");
+    }
+    ol.endItemList();
+
+    if (addToIndex)
+    {
+      Doxygen::indexList->decContentsDepth();
+    }
+    endFile(ol);
+    ol.popGeneratorState();
+  }
+  return;
+}
+
+//----------------------------------------------------------------------------
+
+static void writeRequirementList(OutputList &ol, LayoutNavEntry::Kind a_lne_kind)
+{
+  if (Doxygen::requirementSDict->count() > 0) {
+    ol.pushGeneratorState();
+    ol.disable(OutputGenerator::Man);
+
+    Requirement::req_type tmp_type;
+    HighlightedItem tmp_HLI;
+    QCString type_str;
+    switch (a_lne_kind) {
+    case LayoutNavEntry::RequirementsList_safety :
+      {
+        type_str = "_safety";
+        tmp_type = Requirement::safety;
+        tmp_HLI = HLI_Req_safety;
+        break;
+      }
+    case LayoutNavEntry::RequirementsList_safety_critical :
+      {
+        type_str = "_safety_critical";
+        tmp_type = Requirement::safety_critical;
+        tmp_HLI = HLI_Req_safety_critical;
+        break;
+      }
+    case LayoutNavEntry::RequirementsList_use_case :
+      {
+        type_str = "_use_case";
+        tmp_type = Requirement::use_case;
+        tmp_HLI = HLI_Req_use_case;
+        break;
+      }
+    case LayoutNavEntry::RequirementsList_test_case:
+    {
+      type_str = "_test_case";
+      tmp_type = Requirement::test_case;
+      tmp_HLI = HLI_Req_test_case;
+      break;
+    }
+    default:
+      {
+        tmp_type = Requirement::undef_type;
+        break;
+      }
+    }
+
+    LayoutNavEntry *lne;// = LayoutDocManager::instance().rootNavEntry()->find(LayoutNavEntry::RequirementsList);
+    lne = LayoutDocManager::instance().rootNavEntry()->find(a_lne_kind); // fall back
+    QCString title = lne ? lne->title() : theTranslator->trRequirementsList();
+    bool addToIndex = lne==0 || lne->visible();
+
+    QCString filename_str = "requirementslist" + type_str;
+
+    if (tmp_type == Requirement::undef_type) {
+      Doxygen::indexList->addContentsItem(
+        TRUE,
+        title,
+        0,
+        filename_str,
+        0
+      );
+      Doxygen::indexList->incContentsDepth();
+    }
+    else {
+
+      startFile(ol, filename_str, title, title, tmp_HLI);
+
+      RequirementSDict::Iterator pdi(*Doxygen::requirementSDict);
+      Requirement *pd=0;
+
+      //HTML
+      ol.pushGeneratorState();
+      ol.disableAllBut(OutputGenerator::Html);
+
+      startTitle(ol,0);
+      ol.parseText(title);
+      endTitle(ol,0,0);
+      ol.startContents();
+
+      ol.startTextBlock();
+      ol.parseText(lne->intro());
+      ol.parseText("\n");
+      ol.endTextBlock();
+
+      ol.startItemList();
+      for (pdi.toFirst();(pd=pdi.current());++pdi)
+      {
+        if (pd->mp_parentReq == 0) {
+          if (tmp_type == pd->m_req_type) {
+            ol.startItemListItem();
+            QCString n=pd->getOutputFileBase();
+            ol.writeObjectLink(0,n,0,pd->name());
+            if (addToIndex)
+            {
+              Doxygen::indexList->addContentsItem(FALSE,pd->name(),pd->getReference(),n,0,FALSE,TRUE);
+            }
+            ol.endItemListItem();
+            ol.writeString("\n");
+          }
+        }
+      }
+      ol.endItemList();
+      ol.popGeneratorState();
+
+      //LATEX
+      ol.pushGeneratorState();
+      ol.disableAllBut(OutputGenerator::Latex);
+      ol.startTextBlock();
+      ol.startParagraph();
+      ol.parseText(lne->intro());
+      ol.endParagraph();
+      ol.endTextBlock();
+
+      for (pdi.toFirst();(pd=pdi.current());++pdi)
+      {
+        if (pd->mp_parentReq == 0) {
+          if (tmp_type == pd->m_req_type) {
+            ol.writePageLink(pd->getOutputFileBase(), false);
+          }
+        }
+      }
+      ol.popGeneratorState();
+
+
+      if (addToIndex)
+      {
+        Doxygen::indexList->decContentsDepth();
+      }
+      endFile(ol);
+    }
+
+    ol.popGeneratorState();
+  }
+  return;
+}
+
+//----------------------------------------------------------------------------
+
+static void writeRequirementsUnsatisfied(OutputList &ol)
+{
+  if (Doxygen::requirementSDict->count() > 0) {
+    ol.pushGeneratorState();
+
+//    ol.disable(OutputGenerator::Man);
+    ol.disableAllBut(OutputGenerator::Html);
+    ol.enable(OutputGenerator::Latex);
+
+    LayoutNavEntry *lne;// = LayoutDocManager::instance().rootNavEntry()->find(LayoutNavEntry::Requirements);
+    lne = LayoutDocManager::instance().rootNavEntry()->find(LayoutNavEntry::RequirementsUnsatisfied);
+    QCString title = lne ? lne->title() : theTranslator->trRequirementsUnsatisfied();
+    bool addToIndex = lne==0 || lne->visible();
+
+    startFile(ol,"requirementsunsatisfied",0,title,HLI_RequirementsUnsatisfied);
+
+    startTitle(ol,0);
+    ol.parseText(title);
+    endTitle(ol,0,0);
+    ol.startContents();
+
+    ol.writeAnchor("requirementsunsatisfied","out_of_scope");
+    ol.startGroupHeader();
+    ol.writeString("Out Of Scope Requirements");
+    ol.endGroupHeader();
+    ol.writeString("Those requirements are left unsatisfied since out of the scope of the code : ");
+
+//    ol.startItemList();
+
+    RequirementSDict::Iterator pdi(*Doxygen::requirementSDict);
+    Requirement *pd=0;
+    for (pdi.toFirst();(pd=pdi.current());++pdi)
+    {
+      if (pd->m_outOfScope == true) {
+//        ol.startItemListItem();
+        QCString n=pd->getOutputFileBase();
+
+        ol.disableAllBut(OutputGenerator::Latex);
+        ol.writeObjectLink(0,n+"_topOfReq",0,pd->name());
+        ol.enableAll();
+        ol.disable(OutputGenerator::Latex);
+        ol.writeObjectLink(0,n,0,pd->name());
+        ol.enableAll();
+
+        if (addToIndex)
+        {
+          Doxygen::indexList->addContentsItem(FALSE,pd->name(),pd->getReference(),n,0,FALSE,TRUE);
+        }
+//        ol.endItemListItem();
+//        ol.writeString("\n");
+        ol.writeString(", ");
+      }
+    }
+
+//    ol.endItemList();
+    ol.writeString("\n");
+
+
+    ol.writeAnchor("requirementsunsatisfied","in_scope");
+    ol.startGroupHeader();
+    ol.writeString("In Scope Requirements");
+    ol.endGroupHeader();
+    ol.writeString("There should be nothing left in \"In Scope Requirements\" since they must be satisfied somewhere in the code.");
+
+    if (addToIndex)
+    {
+      Doxygen::indexList->addContentsItem(TRUE,title,0,"requirementsunsatisfied",0,TRUE,TRUE); 
+      Doxygen::indexList->incContentsDepth();
+    }
+
+    if (Doxygen::requirementUnsatisfiedSDict->count() > 0) {
+      ol.startItemList();
+    }
+    RequirementSDict::Iterator requi(*Doxygen::requirementUnsatisfiedSDict);
+    Requirement *requ=0;
+    for (requi.toFirst();(requ=requi.current());++requi)
+    {
+      ol.startItemListItem();
+      QCString n=requ->getOutputFileBase();
+
+      ol.disableAllBut(OutputGenerator::Latex);
+      ol.writeObjectLink(0,n+"_topOfReq",0,requ->name());
+      ol.enableAll();
+      ol.disable(OutputGenerator::Latex);
+      ol.writeObjectLink(0,n,0,requ->name());
+      ol.enableAll();
+
+      if (addToIndex)
+      {
+        Doxygen::indexList->addContentsItem(FALSE,requ->name(),requ->getReference(),n,0,FALSE,TRUE);
+      }
+      ol.endItemListItem();
+      ol.writeString("\n");
+    }
+    if (Doxygen::requirementUnsatisfiedSDict->count() > 0) {
+      ol.endItemList();
+    }
+
+    ol.writeAnchor("requirementsuntested","all");
+    ol.startGroupHeader();
+    ol.writeString("Untested Requirements");
+    ol.endGroupHeader();
+    ol.writeString("There should be nothing left in this section since all REQUIREMENTS must be tested somewhere in the code.");
+
+    RequirementSDict::Iterator requi2(*Doxygen::requirementUntestedSDict);
+    Requirement *requ2=0;
+
+    if (Doxygen::requirementUntestedSDict->count() > 0) {
+      ol.startItemList();
+    }
+    for (requi2.toFirst(); (requ2 = requi2.current()); ++requi2)
+    {
+      ol.startItemListItem();
+      QCString n=requ2->getOutputFileBase();
+
+      ol.disableAllBut(OutputGenerator::Latex);
+      ol.writeObjectLink(0,n+"_topOfReq",0,requ2->name());
+      ol.enableAll();
+      ol.disable(OutputGenerator::Latex);
+      ol.writeObjectLink(0,n,0,requ2->name());
+      ol.enableAll();
+
+      if (addToIndex)
+      {
+        Doxygen::indexList->addContentsItem(FALSE,requ2->name(),requ2->getReference(),n,0,FALSE,TRUE);
+      }
+      ol.endItemListItem();
+      ol.writeString("\n");
+    }
+    if (Doxygen::requirementUntestedSDict->count() > 0) {
+      ol.endItemList();
+    }
+
+
+    if (addToIndex)
+    {
+      Doxygen::indexList->decContentsDepth();
+    }
+    endFile(ol);
+    ol.popGeneratorState();
+  }
+  return;
+}
+
+//----------------------------------------------------------------------------
+
 static int countGroups()
 {
   int count=0;
@@ -4748,6 +5094,28 @@ static void writeIndex(OutputList &ol)
   }
   ol.enable(OutputGenerator::Docbook);
 
+  if (Doxygen::requirementMain!=0)
+  {
+    ol.startIndexSection(isRequirementsMainDocumentation);
+    ol.parseText(/*projPrefix+*/theTranslator->trRequirementsMainDocumentation());
+    ol.endIndexSection(isRequirementsMainDocumentation);
+  }
+  if (Doxygen::requirementSDict->count()>0)
+  {
+    ol.startIndexSection(isRequirementsList);
+    ol.parseText(/*projPrefix+*/theTranslator->trRequirementsList_safety());
+    ol.endIndexSection(isRequirementsList_safety);
+    ol.startIndexSection(isRequirementsList);
+    ol.parseText(/*projPrefix+*/theTranslator->trRequirementsList_safety_critical());
+    ol.endIndexSection(isRequirementsList_safety_critical);
+    ol.startIndexSection(isRequirementsList);
+    ol.parseText(/*projPrefix+*/theTranslator->trRequirementsList_use_case());
+    ol.endIndexSection(isRequirementsList_use_case);
+    ol.startIndexSection(isRequirementsList);
+    ol.parseText(/*projPrefix+*/theTranslator->trRequirementsList_test_case());
+    ol.endIndexSection(isRequirementsList_test_case);
+  }
+
   if (documentedGroups>0)
   {
     ol.startIndexSection(isModuleDocumentation);
@@ -5096,6 +5464,69 @@ static void writeIndexHierarchyEntries(OutputList &ol,const QList<LayoutNavEntry
           }
           writeUserGroupStubPage(ol,lne);
           break;
+
+
+        case LayoutNavEntry::RequirementsGraphs:
+        {
+          msg("Generating Requirements Graphs...\n");
+          writeReqGraph(ol);
+          break;
+        }
+        case LayoutNavEntry::Requirements:
+        {
+          msg("Generating Requirements pages ...\n");
+          Doxygen::indexList->addContentsItem(TRUE, lne->title(), 0, 0, 0);
+          Doxygen::indexList->incContentsDepth();
+
+          break;
+        }
+        case LayoutNavEntry::RequirementsMain:
+        {
+          msg("Generating Requirements Main page...\n");
+          if (Doxygen::requirementMain != 0) {
+            Doxygen::requirementMain->writeDocumentation(ol);
+          }
+          break;
+        }
+        case LayoutNavEntry::RequirementsList:
+        {
+          msg("Generating Requirements list pages...\n");
+          //            Doxygen::indexList->addContentsItem(TRUE,lne->title(),0,0,0); 
+          //            writeRequirementList(ol, LayoutNavEntry::UserGroup);
+          break;
+        }
+        case LayoutNavEntry::RequirementsList_safety:
+        {
+          msg("Generating Requirements list for Safety...\n");
+          writeRequirementList(ol, kind);
+          break;
+        }
+        case LayoutNavEntry::RequirementsList_safety_critical:
+        {
+          msg("Generating Requirements list for Safety Critical...\n");
+          writeRequirementList(ol, kind);
+          break;
+        }
+        case LayoutNavEntry::RequirementsList_use_case:
+        {
+          msg("Generating Requirements list for Use Case...\n");
+          writeRequirementList(ol, kind);
+          break;
+        }
+        case LayoutNavEntry::RequirementsList_test_case:
+        {
+          msg("Generating Requirements list for Test Case...\n");
+          writeRequirementList(ol, kind);
+          break;
+        }
+        case LayoutNavEntry::RequirementsUnsatisfied:
+        {
+          msg("Generating Requirements Unsatisfied...\n");
+          writeRequirementsUnsatisfied(ol);
+          break;
+        }
+
+
         case LayoutNavEntry::None:
           assert(kind != LayoutNavEntry::None); // should never happen, means not properly initialized
           break;

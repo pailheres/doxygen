@@ -173,6 +173,14 @@ GenericsSDict   *Doxygen::genericsDict;
 DocGroup         Doxygen::docGroup;
 Preprocessor    *Doxygen::preprocessor = 0;
 
+RequirementSDict *Doxygen::requirementSDict = 0;
+RequirementSDict *Doxygen::requirementUnsatisfiedSDict = 0;
+RequirementSDict *Doxygen::requirementUntestedSDict = 0;
+RequirementSatisfiedList *Doxygen::reqSatList = 0;
+RequirementTestedList *Doxygen::reqTestList = 0;
+RequirementMain  *Doxygen::requirementMain = 0;
+Dot_GraphSDict   *Doxygen::req_GraphSDict = 0;
+
 // locally accessible globals
 static std::unordered_map< std::string, const Entry* > g_classEntries;
 static StringList       g_inputFiles;
@@ -728,6 +736,151 @@ static void organizeSubGroups(const Entry *root)
 
 //----------------------------------------------------------------------
 
+static void buildReqList(const Entry *root)
+{
+  if (root->section==Entry::REQDOC_SEC && !root->name.isEmpty()) 
+  {
+    std::string tmp_blabla(root->name);
+    if (tmp_blabla.compare("UC-73.1") == 0) {
+      int iiii = 0;
+    }
+
+    if (Doxygen::requirementSDict->find(root->name))
+    {
+      warn(root->fileName,root->startLine,
+          "warning: Requirement %s was already documented. Ignoring "
+          "documentation found here.",
+          root->name.data()
+          );
+    }
+    else
+    {
+      Requirement* tmp_req=new Requirement(root->fileName,root->startLine,root->name,root->brief+root->doc+root->inbodyDocs,root->args);
+      tmp_req->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+
+      QCString bla = tmp_req->name();
+      bla = substitute(bla,"-","_");
+      bla = substitute(bla,".","_");
+
+      tmp_req->setFileName("requirement_"+convertNameToFile(bla));
+      tmp_req->setLanguage(root->lang);
+
+      //tmp_req->setRefItems(root->sli);
+
+      Doxygen::requirementSDict->inSort(root->name, tmp_req);
+    }
+  }
+  else if (root->section==Entry::REQDOC_MAIN && !root->name.isEmpty())
+  {
+    if (Doxygen::requirementMain != 0)
+    {
+      warn(root->fileName,root->startLine,
+          "warning: \\req_main was already used in code analysed before. Ignoring command found here."
+          );
+    }
+    else
+    {
+      Doxygen::requirementMain = new RequirementMain(root->fileName,root->startLine,root->name,root->brief+root->doc+root->inbodyDocs,root->args);
+      Doxygen::requirementMain->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+    }
+  }
+  else if (root->section==Entry::DOT_GRAPH_SEC && !root->name.isEmpty()) 
+  {
+    if (Doxygen::req_GraphSDict->find(root->name))
+    {
+      warn(root->fileName,root->startLine,
+          "warning: Requirement Graph %s was already documented. Ignoring "
+          "documentation found here.",
+          root->name.data()
+          );
+    }
+    else
+    {
+      Dot_Graph* tmp_dotGraph=new Dot_Graph(root->fileName,root->startLine,root->name,root->brief+root->doc+root->inbodyDocs,root->args);
+      tmp_dotGraph->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+
+      Doxygen::req_GraphSDict->inSort(root->name, tmp_dotGraph);
+    }
+  }
+  for (const auto &e : root->children()) buildReqList(e.get());
+
+  return;
+}
+
+static void associateReq(Entry *root)
+{
+  if (root->section==Entry::REQDOC_SEC && !root->name.isEmpty()) 
+  {
+    std::string tmp_blabla(root->name);
+    if (tmp_blabla.compare("UC-73.1") == 0) {
+      int iiii = 0;
+    }
+
+    Requirement* tmp_reqParent;
+    QCString tmp_parentStr;
+    Requirement* tmp_req = Doxygen::requirementSDict->find(root->name);
+    if (tmp_req != 0)
+    {
+      static QRegExp re1("^UC-[0-9]+.*");
+      static QRegExp re2("^SC-[0-9]+.*");
+      static QRegExp re3("^R-[0-9]+.*");
+      static QRegExp re4("^TC-[0-9]+.*");
+      int l1, s1;
+      int l2,s2;
+      int l3,s3;
+      int l4, s4;
+      QCString tmp_req_number = tmp_req->name();
+      s1 = re1.match(tmp_req_number,0,&l1);
+      s2 = re2.match(tmp_req_number,0,&l2);
+      s3 = re3.match(tmp_req_number,0,&l3);
+      s4 = re4.match(tmp_req_number, 0, &l4);
+      if (s1 == 0) {
+        tmp_req->m_req_type = Requirement::use_case;
+      }
+      else if (s2==0) {
+        tmp_req->m_req_type = Requirement::safety_critical;
+      }
+      else if (s3==0) {
+        tmp_req->m_req_type = Requirement::safety;
+      }
+      else if (s4 == 0) {
+        tmp_req->m_req_type = Requirement::test_case;
+      }
+
+      static QRegExp re("^[USRT]+C?-[0-9]+.*\.[^0]{1}");
+      int l,s;
+      s = re.match(root->name,0,&l);
+      if (s>=0) {
+        tmp_parentStr = root->name.mid(s,l-2);
+
+        tmp_reqParent = Doxygen::requirementSDict->find(tmp_parentStr);
+        if (tmp_reqParent != 0)
+        {
+          tmp_reqParent->addChildReq(*(tmp_req));
+        }
+        else
+        {
+          warn(root->fileName,root->startLine,
+              "warning: Requirement %s was not found. Cannot be setted as parent.",
+              root->name.data()
+              );
+        }
+      }
+    }
+    else
+    {
+      warn(root->fileName,root->startLine,
+          "warning: Requirement %s was not found in requirement list.",
+          root->name.data()
+          );
+    }
+  }
+  for (const auto &e : root->children()) associateReq(e.get());
+
+  return;
+}
+
+//----------------------------------------------------------------------
 static void buildFileList(const Entry *root)
 {
   if (((root->section==Entry::FILEDOC_SEC) ||
@@ -5164,6 +5317,18 @@ static void addListReferences()
     }
   }
 
+  RequirementSDict::Iterator rli(*Doxygen::requirementSDict);
+  Requirement *rd=0;
+  for (rli.toFirst();(rd=rli.current());++rli)
+  {
+    rd->addListReferences();
+  }
+
+//  for (int tmp_ii=0; tmp_ii<Doxygen::reqSatList->count(); tmp_ii++) {
+//    RequirementSatisfied* tmpp_reqSat = Doxygen::reqSatList->at(tmp_ii);
+//    int tmp_blo = 0;
+//  }
+
   GroupSDict::Iterator gli(*Doxygen::groupSDict);
   GroupDef *gd;
   for (gli.toFirst();(gd=gli.current());++gli)
@@ -7949,6 +8114,37 @@ static void generateFileDocs()
 
 //----------------------------------------------------------------------------
 
+static void generateRequirementDocs()
+{
+  if (Doxygen::requirementMain != 0) {
+    RequirementMain *reqMain = Doxygen::requirementMain;
+    reqMain->writeDocumentation(*g_outputList);
+  }
+
+  if (Doxygen::requirementSDict->count()>0)
+  {
+    msg("Generating docs for requirements...\n");
+
+    RequirementSDict::Iterator reqi(*Doxygen::requirementSDict);
+    Requirement *req=0;
+    for (reqi.toFirst();(req=reqi.current());++reqi)
+    {
+      std::string tmp_blabla(req->name());
+      if (tmp_blabla.compare("UC-73.1") == 0) {
+        int iiii = 0;
+      }
+
+      req->writeDocumentation(*g_outputList);
+    }
+
+//    Doxygen::requirementSDict->writeDocumentation(*g_outputList);
+  }
+
+  return;
+}
+
+//----------------------------------------------------------------------------
+
 static void addSourceReferences()
 {
   // add source references for class definitions
@@ -10123,6 +10319,19 @@ void initDoxygen()
   Doxygen::directories->setAutoDelete(TRUE);
   Doxygen::pageSDict = new PageSDict(1009);          // all doc pages
   Doxygen::pageSDict->setAutoDelete(TRUE);
+
+  Doxygen::requirementSDict = new RequirementSDict(1009);          // all requirements
+  Doxygen::requirementSDict->setAutoDelete(TRUE);
+  Doxygen::requirementUnsatisfiedSDict = new RequirementSDict(1009);          // all unsatified requirements
+  Doxygen::requirementUnsatisfiedSDict->setAutoDelete(FALSE);
+  Doxygen::requirementUntestedSDict = new RequirementSDict(1009);          // all untested requirements
+  Doxygen::requirementUntestedSDict->setAutoDelete(FALSE);
+  Doxygen::reqSatList = new RequirementSatisfiedList();
+  Doxygen::reqTestList = new RequirementTestedList();
+  //Doxygen::reqSatList->setAutoDelete(FALSE);
+  Doxygen::req_GraphSDict = new Dot_GraphSDict(1009);          // all dot graph
+  Doxygen::req_GraphSDict->setAutoDelete(TRUE);
+
   Doxygen::exampleSDict = new PageSDict(1009);       // all examples
   Doxygen::exampleSDict->setAutoDelete(TRUE);
   Doxygen::memGrpInfoDict.setAutoDelete(TRUE);
@@ -10183,6 +10392,14 @@ void cleanUpDoxygen()
   delete Doxygen::globalScope;
   delete Doxygen::xrefLists;
   delete Doxygen::parserManager;
+
+  delete Doxygen::requirementSDict;
+  delete Doxygen::requirementUnsatisfiedSDict;
+  delete Doxygen::requirementUntestedSDict;
+  delete Doxygen::reqSatList;
+  delete Doxygen::reqTestList;
+  delete Doxygen::req_GraphSDict;
+
   delete Doxygen::preprocessor;
   delete theTranslator;
   delete g_outputList;
@@ -11273,6 +11490,10 @@ void parseInput()
   /**************************************************************************
    *             Gather information                                         *
    **************************************************************************/
+  g_s.begin("Building REQ list...\n");
+  buildReqList(root.get());
+  associateReq(root.get());
+  g_s.end();
 
   g_s.begin("Building group list...\n");
   buildGroupList(root.get());
@@ -11699,6 +11920,10 @@ void generateOutput()
 
   g_s.begin("Generating namespace index...\n");
   generateNamespaceDocs();
+  g_s.end();
+
+  g_s.begin("Generating requirements documentation...\n");
+  generateRequirementDocs();
   g_s.end();
 
   if (Config_getBool(GENERATE_LEGEND))

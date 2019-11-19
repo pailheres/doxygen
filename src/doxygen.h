@@ -29,6 +29,8 @@
 #include "memberlist.h"
 #include "docgroup.h"
 
+#include "requirement.h"
+
 class RefList;
 class PageSList;
 class PageSDict;
@@ -154,6 +156,14 @@ class Doxygen
     static GenericsSDict            *genericsDict;
     static DocGroup                  docGroup;
     static Preprocessor             *preprocessor;
+
+    static Dot_GraphSDict           *req_GraphSDict;
+    static RequirementSDict         *requirementSDict;
+    static RequirementSDict         *requirementUnsatisfiedSDict;
+    static RequirementSDict         *requirementUntestedSDict;
+    static RequirementSatisfiedList *reqSatList;
+    static RequirementTestedList    *reqTestList;
+    static RequirementMain          *requirementMain;
 };
 
 void initDoxygen();

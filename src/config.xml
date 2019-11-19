@@ -1125,6 +1125,26 @@ Go to the <a href="commands.html">next</a> section or return to the
 ]]>
       </docs>
     </option>
+    <option type='bool' id='GENERATE_REQ_SATLIST' defval='1'>
+      <docs>
+        <![CDATA[
+ The \c GENERATE_REQ_SATLIST tag can be used to enable (\c YES) or
+ disable (\c NO) the requirement satisfied list. This list is created by 
+ putting \ref cmdreq_sat "\\req_sat"
+ commands in the documentation.
+]]>
+      </docs>
+    </option>
+    <option type='bool' id='GENERATE_REQ_TESTLIST' defval='1'>
+      <docs>
+        <![CDATA[
+ The \c GENERATE_REQ_TESTLIST tag can be used to enable (\c YES) or
+ disable (\c NO) the requirement tested list. This list is created by 
+ putting \ref cmdreq_test "\\req_test"
+ commands in the documentation.
+]]>
+      </docs>
+    </option>
     <option type='list' id='ENABLED_SECTIONS' format='string'>
       <docs>
 <![CDATA[

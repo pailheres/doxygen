@@ -286,6 +286,7 @@ add_library(_doxygen STATIC
     docbookvisitor.cpp
     docbookgen.cpp
     docgroup.cpp
+    requirement.cpp
 )
 
 ##foreach(lex_file ${LEX_FILES})

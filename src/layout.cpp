@@ -1192,6 +1192,72 @@ class LayoutParser : public QXmlDefaultHandler
           QCString(),
           "usergroup"
         },
+
+        { "requirements",
+          LayoutNavEntry::Requirements,
+          theTranslator->trRequirements(),
+          QCString(),
+          theTranslator->trRequirementsDescription(),
+          "requirements"
+        },
+        { "requirementsmain",
+          LayoutNavEntry::RequirementsMain,
+          theTranslator->trRequirementsMain(),
+          QCString(),
+          theTranslator->trRequirementsMainDescription(),
+          "requirements"
+        },
+        { "requirementsgraphs",
+          LayoutNavEntry::RequirementsGraphs,
+          theTranslator->trRequirementsGraphList(),
+          QCString(),
+          theTranslator->trRequirementsGraphListDescription(),
+          "requirementsgraphs"
+        },
+        { "requirementslist",
+          LayoutNavEntry::RequirementsList,
+          theTranslator->trRequirementsList(),
+          QCString(),
+          theTranslator->trRequirementsListDescription(),
+          "requirementslist_safety"
+        },
+        { "requirementslist_safety",
+          LayoutNavEntry::RequirementsList_safety,
+          theTranslator->trRequirementsList_safety(),
+          QCString(),
+          theTranslator->trRequirementsListDescription_safety(),
+          "requirementslist_safety"
+        },
+        { "requirementslist_safety_critical",
+          LayoutNavEntry::RequirementsList_safety_critical,
+          theTranslator->trRequirementsList_safety_critical(),
+          QCString(),
+          theTranslator->trRequirementsListDescription_safety_critical(),
+          "requirementslist_safety_critical"
+        },
+        { "requirementslist_use_case",
+          LayoutNavEntry::RequirementsList_use_case,
+          theTranslator->trRequirementsList_use_case(),
+          QCString(),
+          theTranslator->trRequirementsListDescription_use_case(),
+          "requirementslist_use_case"
+        },
+        { "requirementslist_test_case",
+          LayoutNavEntry::RequirementsList_test_case,
+          theTranslator->trRequirementsList_test_case(),
+          QCString(),
+          theTranslator->trRequirementsListDescription_test_case(),
+          "requirementslist_test_case"
+        },
+        { "requirementsunsatisfied",
+          LayoutNavEntry::RequirementsUnsatisfied,
+          theTranslator->trRequirementsUnsatisfied(),
+          QCString(),
+          theTranslator->trRequirementsUnsatisfiedDescription(),
+          "requirementsunsatisfied"
+        },
+
+
         { 0, // end of list
           (LayoutNavEntry::Kind)0,
           QCString(),

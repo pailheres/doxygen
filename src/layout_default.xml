@@ -4,6 +4,15 @@
   <navindex>
     <tab type="mainpage" visible="yes" title=""/>
     <tab type="pages" visible="yes" title="" intro=""/>
+    <tab type="requirements" visible="yes" title="">
+      <tab type="requirementsmain" visible="yes" title="" intro=""/>
+      <tab type="requirementsgraphs" visible="yes" title="" intro=""/>
+      <tab type="requirementsunsatisfied" visible="$ALPHABETICAL_INDEX" title=""/>
+      <tab type="requirementslist_use_case" visible="yes" title="" intro=""/>
+      <tab type="requirementslist_safety" visible="yes" title="" intro=""/>
+      <tab type="requirementslist_safety_critical" visible="yes" title="" intro=""/>
+      <tab type="requirementslist_test_case" visible="yes" title="" intro=""/>
+    </tab>
     <tab type="modules" visible="yes" title="" intro=""/>
     <tab type="namespaces" visible="yes" title="">
       <tab type="namespacelist" visible="yes" title="" intro=""/>

@@ -2112,6 +2112,15 @@ static bool quickLinkVisible(LayoutNavEntry::Kind kind)
     case LayoutNavEntry::ExceptionList:      return annotatedExceptions>0;
     case LayoutNavEntry::ExceptionIndex:     return annotatedExceptions>0;
     case LayoutNavEntry::ExceptionHierarchy: return hierarchyExceptions>0;
+    case LayoutNavEntry::Requirements:      return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsGraphs:  return Doxygen::req_GraphSDict->count()>0;
+    case LayoutNavEntry::RequirementsList:  return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsList_safety:  return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsList_safety_critical:  return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsList_use_case:  return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsList_test_case:  return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsUnsatisfied: return Doxygen::requirementSDict->count()>0;
+    case LayoutNavEntry::RequirementsMain:      return Doxygen::requirementSDict->count()>0;
     case LayoutNavEntry::None:             // should never happen, means not properly initialized
       assert(kind != LayoutNavEntry::None);
       return FALSE;
@@ -2270,6 +2279,15 @@ static void writeDefaultQuickLinks(FTextStream &t,bool compact,
                                highlightParent = TRUE; break;
     case HLI_FileVisible:      kind = LayoutNavEntry::FileList;         altKind = LayoutNavEntry::Files;
                                highlightParent = TRUE; break;
+    case HLI_Requirements:             kind = LayoutNavEntry::Requirements;            break;
+    case HLI_RequirementsGraphs:       kind = LayoutNavEntry::RequirementsGraphs;      break;
+    case HLI_RequirementsList:         kind = LayoutNavEntry::RequirementsList;        break;
+    case HLI_Req_safety:         kind = LayoutNavEntry::RequirementsList_safety;        break;
+    case HLI_Req_safety_critical:         kind = LayoutNavEntry::RequirementsList_safety_critical;        break;
+    case HLI_Req_use_case:         kind = LayoutNavEntry::RequirementsList_use_case;        break;
+    case HLI_Req_test_case:         kind = LayoutNavEntry::RequirementsList_test_case;        break;
+    case HLI_RequirementsUnsatisfied:  kind = LayoutNavEntry::RequirementsUnsatisfied; break;
+    case HLI_RequirementsMain:         kind = LayoutNavEntry::RequirementsMain;        break;
     case HLI_None:   break;
     case HLI_Search: break;
   }
