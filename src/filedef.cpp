@@ -349,7 +349,7 @@ void FileDefImpl::writeTagFile(FTextStream &tagFile)
   tagFile << "  <compound kind=\"file\">" << endl;
   tagFile << "    <name>" << convertToXML(name()) << "</name>" << endl;
   tagFile << "    <path>" << convertToXML(getPath()) << "</path>" << endl;
-  tagFile << "    <filename>" << convertToXML(getOutputFileBase()) << "</filename>" << endl;
+  tagFile << "    <filename>" << convertToXML(addHtmlExtensionIfMissing(getOutputFileBase())) << "</filename>" << endl;
   if (m_includeList && m_includeList->count()>0)
   {
     QListIterator<IncludeInfo> ili(*m_includeList);
@@ -1233,8 +1233,8 @@ void FileDefImpl::writeSource(OutputList &ol,bool sameTu,QStrList &filesInSameTu
   else
 #endif
   {
-    ParserInterface *pIntf = Doxygen::parserManager->getParser(getDefFileExtension());
-    pIntf->resetCodeParserState();
+    CodeParserInterface &intf = Doxygen::parserManager->getCodeParser(getDefFileExtension());
+    intf.resetCodeParserState();
     ol.startCodeFragment();
     bool needs2PassParsing = 
         Doxygen::parseSourcesNeeded &&                // we need to parse (filtered) sources for cross-references
@@ -1244,13 +1244,13 @@ void FileDefImpl::writeSource(OutputList &ol,bool sameTu,QStrList &filesInSameTu
     if (needs2PassParsing)
     {
       // parse code for cross-references only (see bug707641)
-      pIntf->parseCode(devNullIntf,0,
+      intf.parseCode(devNullIntf,0,
                        fileToString(absFilePath(),TRUE,TRUE),
                        getLanguage(),
                        FALSE,0,this
                       );
     }
-    pIntf->parseCode(ol,0,
+    intf.parseCode(ol,0,
         fileToString(absFilePath(),filterSourceFiles,TRUE),
         getLanguage(),      // lang
         FALSE,              // isExampleBlock
@@ -1295,9 +1295,9 @@ void FileDefImpl::parseSource(bool sameTu,QStrList &filesInSameTu)
   else
 #endif
   {
-    ParserInterface *pIntf = Doxygen::parserManager->getParser(getDefFileExtension());
-    pIntf->resetCodeParserState();
-    pIntf->parseCode(
+    CodeParserInterface &intf = Doxygen::parserManager->getCodeParser(getDefFileExtension());
+    intf.resetCodeParserState();
+    intf.parseCode(
             devNullIntf,0,
             fileToString(absFilePath(),filterSourceFiles,TRUE),
             getLanguage(),
@@ -2015,7 +2015,7 @@ void FileDefImpl::acquireFileVersion()
     msg("Version of %s : ",m_filePath.data());
     QCString cmd = vercmd+" \""+m_filePath+"\"";
     Debug::print(Debug::ExtCmd,0,"Executing popen(`%s`)\n",qPrint(cmd));
-    FILE *f=portable_popen(cmd,"r");
+    FILE *f=Portable::popen(cmd,"r");
     if (!f)
     {
       err("could not execute %s\n",vercmd.data());
@@ -2024,7 +2024,7 @@ void FileDefImpl::acquireFileVersion()
     const int bufSize=1024;
     char buf[bufSize];
     int numRead = (int)fread(buf,1,bufSize-1,f);
-    portable_pclose(f);
+    Portable::pclose(f);
     if (numRead>0 && numRead<bufSize)
     {
       buf[numRead]='\0';

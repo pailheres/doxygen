@@ -51,8 +51,20 @@ void FormulaList::generateBitmaps(const char *path)
   int x1,y1,x2,y2;
   QDir d(path);
   // store the original directory
-  if (!d.exists()) { err("Output dir %s does not exist!\n",path); exit(1); }
+  if (!d.exists())
+  {
+    term("Output dir %s does not exist!\n",path);
+  }
   QCString oldDir = QDir::currentDirPath().utf8();
+  QCString macroFile = Config_getString(FORMULA_MACROFILE);
+  QCString stripMacroFile;
+  if (!macroFile.isEmpty())
+  {
+    QFileInfo fi(macroFile);
+    macroFile=fi.absFilePath().utf8();
+    stripMacroFile = fi.fileName().data();
+  }
+
   // go to the html output directory (i.e. path)
   QDir::setCurrent(d.absPath());
   QDir thisDir;
@@ -74,6 +86,11 @@ void FormulaList::generateBitmaps(const char *path)
     t << "\\usepackage[utf8]{inputenc}" << endl; // looks like some older distributions with newunicode package 1.1 need this option.
     writeExtraLatexPackages(t);
     writeLatexSpecialFormulaChars(t);
+    if (!macroFile.isEmpty())
+    {
+      copyFile(macroFile,stripMacroFile);
+      t << "\\input{" << stripMacroFile << "}" << endl;
+    }
     t << "\\pagestyle{empty}" << endl; 
     t << "\\begin{document}" << endl;
     int page=0;
@@ -100,15 +117,15 @@ void FormulaList::generateBitmaps(const char *path)
     //printf("Running latex...\n");
     //system("latex _formulas.tex </dev/null >/dev/null");
     QCString latexCmd = "latex";
-    portable_sysTimerStart();
-    if (portable_system(latexCmd,"_formulas.tex")!=0)
+    Portable::sysTimerStart();
+    if (Portable::system(latexCmd,"_formulas.tex")!=0)
     {
       err("Problems running latex. Check your installation or look "
           "for typos in _formulas.tex and check _formulas.log!\n");
       formulaError=TRUE;
       //return;
     }
-    portable_sysTimerStop();
+    Portable::sysTimerStop();
     //printf("Running dvips...\n");
     QListIterator<int> pli(pagesToGenerate);
     int *pagePtr;
@@ -125,27 +142,27 @@ void FormulaList::generateBitmaps(const char *path)
       // postscript file.
       sprintf(dviArgs,"-q -D 600 -n 1 -p %d -o %s_tmp.ps _formulas.dvi",
           pageIndex,formBase.data());
-      portable_sysTimerStart();
-      if (portable_system("dvips",dviArgs)!=0)
+      Portable::sysTimerStart();
+      if (Portable::system("dvips",dviArgs)!=0)
       {
         err("Problems running dvips. Check your installation!\n");
-        portable_sysTimerStop();
+        Portable::sysTimerStop();
         QDir::setCurrent(oldDir);
         return;
       }
-      portable_sysTimerStop();
+      Portable::sysTimerStop();
       // run ps2epsi to convert to an encapsulated postscript file with
       // boundingbox (dvips with -E has some problems here).
       sprintf(psArgs,"%s_tmp.ps %s.eps",formBase.data(),formBase.data()); 
-      portable_sysTimerStart();
-      if (portable_system("ps2epsi",psArgs)!=0)
+      Portable::sysTimerStart();
+      if (Portable::system("ps2epsi",psArgs)!=0)
       {
         err("Problems running ps2epsi. Check your installation!\n");
-        portable_sysTimerStop();
+        Portable::sysTimerStop();
         QDir::setCurrent(oldDir);
         return;
       }
-      portable_sysTimerStop();
+      Portable::sysTimerStop();
       // now we read the generated postscript file to extract the bounding box
       QFileInfo fi(formBase+".eps");
       if (fi.exists())
@@ -198,15 +215,15 @@ void FormulaList::generateBitmaps(const char *path)
                     gx,gy,(int)(scaleFactor*72),(int)(scaleFactor*72),
                     formBase.data(),formBase.data()
              );
-      portable_sysTimerStart();
-      if (portable_system(portable_ghostScriptCommand(),gsArgs)!=0)
+      Portable::sysTimerStart();
+      if (Portable::system(Portable::ghostScriptCommand(),gsArgs)!=0)
       {
-        err("Problem running ghostscript %s %s. Check your installation!\n",portable_ghostScriptCommand(),gsArgs);
-        portable_sysTimerStop();
+        err("Problem running ghostscript %s %s. Check your installation!\n",Portable::ghostScriptCommand(),gsArgs);
+        Portable::sysTimerStop();
         QDir::setCurrent(oldDir);
         return;
       }
-      portable_sysTimerStop();
+      Portable::sysTimerStop();
       f.setName(formBase+".pnm");
       uint imageX=0,imageY=0;
       // we read the generated image again, to obtain the pixel data.
@@ -317,7 +334,7 @@ void FormulaList::generateBitmaps(const char *path)
     FTextStream t(&f);
     for (fli.toFirst();(formula=fli.current());++fli)
     {
-      t << "\\form#" << formula->getId() << ":" << formula->getFormulaText() << endl;
+      t << "\\_form#" << formula->getId() << ":" << formula->getFormulaText() << endl;
     }
     f.close();
   }

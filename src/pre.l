@@ -1420,7 +1420,6 @@ CHARLIT   (("'"\\[0-7]{1,3}"'")|("'"\\."'")|("'"[^'\\\n]{1,4}"'"))
 					}
 <CopyCComment>\\[\r]?\n                 {
                                           yyextra->defLitText+=yytext;
-                                          outputChar(yyscanner,'\n');
                                           yyextra->defText+=" ";
                                           yyextra->yyLineNr++;
                                           yyextra->yyMLines++;
@@ -1432,7 +1431,6 @@ CHARLIT   (("'"\\[0-7]{1,3}"'")|("'"\\."'")|("'"[^'\\\n]{1,4}"'"))
   					}
 <CopyCComment>\n			{ 
   					  yyextra->yyLineNr++;
-  					  outputChar(yyscanner,'\n');
 					  yyextra->defLitText+=yytext;
 					  yyextra->defText+=' ';
   					}
@@ -1826,7 +1824,7 @@ static FileState *findFile(yyscan_t yyscanner, const char *fileName,bool localIn
 {
   YY_EXTRA_TYPE state = preYYget_extra(yyscanner);
   //printf("** findFile(%s,%d) state->yyFileName=%s\n",fileName,localInclude,state->yyFileName.data());
-  if (portable_isAbsolutePath(fileName))
+  if (Portable::isAbsolutePath(fileName))
   {
     FileState *fs = checkAndOpenFile(yyscanner,fileName,alreadyIncluded);
     if (fs)
@@ -1934,7 +1932,7 @@ static QCString extractTrailingComment(const char *s)
 static int getNextChar(yyscan_t yyscanner,const QCString &expr,QCString *rest,uint &pos);
 static int getCurrentChar(yyscan_t yyscanner,const QCString &expr,QCString *rest,uint pos);
 static void unputChar(yyscan_t yyscanner,const QCString &expr,QCString *rest,uint &pos,char c);
-static void expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,int pos,int level);
+static bool expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,int pos,int level);
 
 static QCString stringize(const QCString &s)
 {
@@ -2084,7 +2082,7 @@ static bool replaceFunctionMacro(yyscan_t yyscanner,const QCString &expr,QCStrin
   }
   if (cc!='(') 
   { 
-    unputChar(yyscanner,expr,rest,j,' '); 
+    unputChar(yyscanner,expr,rest,j,cc); 
     return FALSE; 
   }
   getNextChar(yyscanner,expr,rest,j); // eat the '(' character
@@ -2385,17 +2383,19 @@ static int getNextId(const QCString &expr,int p,int *l)
  *  starting at position \a pos.
  *  May read additional characters from the input while re-scanning!
  */
-static void expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,int pos,int level)
+static bool expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,int pos,int level)
 {
   YY_EXTRA_TYPE state = preYYget_extra(yyscanner);
-  //printf(">expandExpression(expr='%s',rest='%s',pos=%d,level=%d)\n",expr.data(),rest ? rest->data() : 0, pos, level);
+  //printf(">expandExpression(expr='%s',rest='%s',pos=%d,level=%d)\n",expr.data(),rest ? rest->data() : "", pos, level);
   if (expr.isEmpty())
   {
-    return;
+    //printf("<expandExpression: empty\n");
+    return TRUE;
   }
   if (state->expansionDict.find(expr)!=0) // check for recursive expansions
   {
-    return;
+    //printf("<expandExpression: already expanded expr='%s'\n",expr.data());
+    return FALSE;
   }
   else
   {
@@ -2459,16 +2459,25 @@ static void expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,in
 	  QCString resultExpr=expMacro;
 	  QCString restExpr=expr.right(expr.length()-len-p);
 	  processConcatOperators(resultExpr);
-          //printf(" macroName=%s def->nonRecursive=%d\n",macroName.data(),def->nonRecursive);
+          //printf(" macroName=%s restExpr='%s' def->nonRecursive=%d\n",macroName.data(),restExpr.data(),def->nonRecursive);
+          bool expanded=false;
 	  if (def && !def->nonRecursive)
 	  {
 	    state->expandedDict->insert(macroName,def);
-	    expandExpression(yyscanner,resultExpr,&restExpr,0,level+1);
+	    expanded = expandExpression(yyscanner,resultExpr,&restExpr,0,level+1);
 	    state->expandedDict->remove(macroName);
 	  }
-	  expr=expr.left(p)+resultExpr+restExpr;
-	  //printf(" new expression: '%s' old i=%d new i=%d\n",expr.data(),i,p);
-	  i=p;
+          if (expanded)
+          {
+	    expr=expr.left(p)+resultExpr+restExpr;
+	    //printf(" new expression: '%s' old i=%d new i=%d\n",expr.data(),i,p);
+	    i=p;
+          }
+          else
+          {
+	    expr=expr.left(p)+"@-"+expr.right(expr.length()-p);
+            i=p+l+2;
+          }
 	}
 	else // move to the next macro name
 	{
@@ -2491,6 +2500,7 @@ static void expandExpression(yyscan_t yyscanner,QCString &expr,QCString *rest,in
     }
   }
   //printf("<expandExpression(expr='%s',rest='%s',pos=%d,level=%d)\n",expr.data(),rest ? rest->data() : 0, pos,level);
+  return TRUE;
 }
 
 /*! @brief Process string or character literal.
@@ -2783,7 +2793,7 @@ static void addDefine(yyscan_t yyscanner)
   {
     ArgumentList argList;
     //printf("addDefine() state->defName='%s' state->defArgsStr='%s'\n",state->defName.data(),state->defArgsStr.data());
-    stringToArgumentList(state->defArgsStr,argList);
+    stringToArgumentList(SrcLangExt_Cpp, state->defArgsStr,argList);
     md->setArgumentList(argList);
   }
   //printf("Setting initializer for '%s' to '%s'\n",state->defName.data(),state->defText.data());
@@ -2802,7 +2812,15 @@ static void addDefine(yyscan_t yyscanner)
     while ((c=*p++) && (c==' ' || c=='\t')) k++;
     state->defLitText=state->defLitText.mid(l+1,k-l-1)+state->defLitText.stripWhiteSpace();
   }
-  md->setInitializer(state->defLitText.stripWhiteSpace());
+  QCString defLitTextStripped = state->defLitText.stripWhiteSpace();
+  if (defLitTextStripped.contains('\n')>=1)
+  {
+    md->setInitializer(state->defLitText);
+  }
+  else
+  {
+    md->setInitializer(defLitTextStripped);
+  }
 
   //printf("pre.l: md->setFileDef(%p)\n",state->inputFileDef);
   md->setFileDef(state->inputFileDef);
@@ -3247,7 +3265,10 @@ void Preprocessor::processFile(const char *fileName,BufStr &input,BufStr &output
       int i_cbrace=ds.find(')');
       bool nonRecursive = i_equals>0 && ds.at(i_equals-1)==':';
 
-      if (i_obrace==0) continue; // no define name
+      if ((i_obrace==0) || (i_equals==0) || (i_equals==1 && ds.at(i_equals-1)==':'))
+      {
+         continue; // no define name
+      }
 
       if (i_obrace<i_equals && i_cbrace<i_equals && 
 	  i_obrace!=-1      && i_cbrace!=-1      && 
@@ -3309,10 +3330,11 @@ void Preprocessor::processFile(const char *fileName,BufStr &input,BufStr &output
 	  def->fileDef      = state->yyFileDef;
 	  def->fileName     = fileName;
 	  state->defineManager.addDefine(state->yyFileName,def);
+
+	  //printf("#define '%s' '%s' #nargs=%d\n",
+	  //  def->name.data(),def->definition.data(),def->nargs);
 	}
 
-	//printf("#define '%s' '%s' #nargs=%d\n",
-	//  def->name.data(),def->definition.data(),def->nargs);
       }
       else if ((i_obrace==-1 || i_obrace>i_equals) &&
 	  (i_cbrace==-1 || i_cbrace>i_equals) &&
@@ -3426,11 +3448,5 @@ void Preprocessor::processFile(const char *fileName,BufStr &input,BufStr &output
   printlex(yy_flex_debug, FALSE, __FILE__, fileName);
 }
 
-#if !defined(YY_FLEX_SUBMINOR_VERSION) 
-extern "C" { // some bogus code to keep the compiler happy
-//  int  preYYwrap() { return 1 ; }
-  void preYYdummy() { yy_flex_realloc(0,0); } 
-}
-#endif
 
 #include "pre.l.h"
