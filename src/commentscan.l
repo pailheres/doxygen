@@ -327,8 +327,7 @@ class DocCmdMapper
       {
 	if (m_map.find(p->cmdName)!=0)
 	{
-	  err("DocCmdMapper: command %s already added\n",p->cmdName);
-	  exit(1);
+	  term("DocCmdMapper: command %s already added\n",p->cmdName);
 	}
 	Cmd *cmd = new Cmd;
 	cmd->func = p->handler;
@@ -395,7 +394,7 @@ class GuardedSection
  *	statics
  */
 
-static ParserInterface *langParser;          // the language parser that is calling us
+static OutlineParserInterface *langParser;   // the language parser that is calling us
 static QCString         inputString;         // input string
 static int		inputPosition;       // read pointer
 static QCString		yyFileName;          // file name that is read from
@@ -622,12 +621,12 @@ static QCString addFormula()
     f = new Formula(fText);
     Doxygen::formulaList->append(f);
     Doxygen::formulaDict->insert(fText,f);
-    formLabel.sprintf("\\form#%d",f->getId());
+    formLabel.sprintf("\\_form#%d",f->getId());
     Doxygen::formulaNameDict->insert(formLabel,f);
   }
   else
   {
-    formLabel.sprintf("\\form#%d",f->getId());
+    formLabel.sprintf("\\_form#%d",f->getId());
   }
   int i;
   for (i=0;i<formulaNewLines;i++) formLabel+="@_fakenl"; // add fake newlines to
@@ -3127,7 +3126,7 @@ QCString preprocessCommentBlock(const QCString &comment,
   }
 }
 
-bool parseCommentBlock(/* in */     ParserInterface *parser,
+bool parseCommentBlock(/* in */     OutlineParserInterface *parser,
                        /* in */     Entry *curEntry,
                        /* in */     const QCString &comment,
 		       /* in */     const QCString &fileName,
@@ -3280,14 +3279,5 @@ static void handleGuard(const QCString &expr)
     BEGIN( SkipGuardedSection );
   }
 }
-
-
-
-#if !defined(YY_FLEX_SUBMINOR_VERSION) 
-//----------------------------------------------------------------------------
-extern "C" { // some bogus code to keep the compiler happy
-  void commentscanYYdummy() { yy_flex_realloc(0,0); } 
-}
-#endif
 
 #include "commentscan.l.h"

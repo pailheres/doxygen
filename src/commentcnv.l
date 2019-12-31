@@ -106,6 +106,7 @@ static void replaceCommentMarker(yyscan_t yyscanner,const char *s,int len);
 static inline void copyToOutput(yyscan_t yyscanner,const char *s,int len);
 static void startCondSection(yyscan_t yyscanner,const char *sectId);
 static void endCondSection(yyscan_t yyscanner);
+static void handleCondSectionId(yyscan_t yyscanner,const char *expression);
 static void replaceAliases(yyscan_t yyscanner,const char *s);
 static int yyread(yyscan_t yyscanner,char *buf,int max_size);
 static void replaceComment(yyscan_t yyscanner,int offset);
@@ -118,6 +119,8 @@ static void replaceComment(yyscan_t yyscanner,int offset);
 
 
 %}
+
+MAILADR   ("mailto:")?[a-z_A-Z0-9.+-]+"@"[a-z_A-Z0-9-]+("."[a-z_A-Z0-9\-]+)+[a-z_A-Z0-9\-]+
 
 %option noyywrap
 
@@ -335,6 +338,10 @@ static void replaceComment(yyscan_t yyscanner,int offset);
                                        yyextra->commentStack.push(new CommentCtx(yyextra->lineNr));
 				     }
   				   }
+<CComment,ReadLine>{MAILADR}      |
+<CComment,ReadLine>"<"{MAILADR}">" { // Mail address, to prevent seeing e.g x@code-factory.org as start of a code block
+                                     copyToOutput(yyscanner,yytext,(int)yyleng);
+                                   }
 <CComment>"{@code"/[ \t\n]	   {
                                      copyToOutput(yyscanner,"@code",5); 
 				     yyextra->lastCommentContext = YY_START;
@@ -519,7 +526,7 @@ static void replaceComment(yyscan_t yyscanner,int offset);
                                      copyToOutput(yyscanner,yytext,(int)yyleng); 
                                    }
 
-<CComment>[^\\!@*\n{\"\/]*           { /* anything that is not a '*' or command */ 
+<CComment>[^ <\\!@*\n{\"\/]*       { /* anything that is not a '*' or command */ 
                                      copyToOutput(yyscanner,yytext,(int)yyleng); 
                                    }
 <CComment>"*"+[^*/\\@\n{\"]*       { /* stars without slashes */
@@ -721,16 +728,19 @@ static void replaceComment(yyscan_t yyscanner,int offset);
 				     yyextra->inRoseComment=FALSE;
 				     BEGIN(Scan); 
                                    }
+<ReadLine>"/**"                    {
+				     copyToOutput(yyscanner,"/&zwj;**",8);
+				   }
 <ReadLine>"*/"                     {
 				     copyToOutput(yyscanner,"*&zwj;/",7);
 				   }
 <ReadLine>"*"                      {
 				     copyToOutput(yyscanner,yytext,(int)yyleng);
 				   }
-<ReadLine>[^\\@\n\*]*              {
+<ReadLine>[^\\@\n\*/]*             {
 				     copyToOutput(yyscanner,yytext,(int)yyleng);
 				   }
-<ReadLine>[^\\@\n\*]*/\n           {
+<ReadLine>[^\\@\n\*/]*/\n          {
 				     copyToOutput(yyscanner,yytext,(int)yyleng);
 				     BEGIN(yyextra->readLineCtx);
 				   }
@@ -762,57 +772,15 @@ static void replaceComment(yyscan_t yyscanner,int offset);
     				     }
 				    }
 <CondLine>[!()&| \ta-z_A-Z0-9.\-]+ {
-  				     bool oldSkip=yyextra->skip;
-                                     startCondSection(yyscanner,yytext);
-				     if ((yyextra->condCtx==CComment || yyextra->readLineCtx==SComment) && 
-                                         !oldSkip && yyextra->skip) 
-    			             {
-				       if (yyextra->lang!=SrcLangExt_Python &&
-					   yyextra->lang!=SrcLangExt_VHDL &&
-					   yyextra->lang!=SrcLangExt_Markdown &&
-					   yyextra->lang!=SrcLangExt_Fortran)
-				       {
- 				         ADDCHAR('*');
-     				         ADDCHAR('/');
-				       }
-    				     }
-                                     if (yyextra->readLineCtx==SComment)
-                                     {
-                                       BEGIN(SComment);
-                                     }
-                                     else
-                                     {
-  				       BEGIN(yyextra->condCtx);
-                                     }
+                                     handleCondSectionId(yyscanner,yytext);
   				   }
-<CondLine>[ \t]*
-<CComment,ReadLine>[\\@]"cond"[ \t\r]*/\n |
+<CComment,ReadLine>[\\@]"cond"[ \t\r]*/\n {
+  				     yyextra->condCtx=YY_START;
+                                     handleCondSectionId(yyscanner," "); // fake section id causing the section to be hidden unconditionally
+                                   }
 <CondLine>.			   { // forgot section id?
-  				     if (YY_START!=CondLine) yyextra->condCtx=YY_START;
-  				     bool oldSkip=yyextra->skip;
-  				     startCondSection(yyscanner," "); // fake section id causing the section to be hidden unconditionally
-				     if ((yyextra->condCtx==CComment || yyextra->readLineCtx==SComment) && 
-                                         !oldSkip && yyextra->skip) 
-    			             {
-				       //printf("** Adding terminator for comment!\n");
-				       if (yyextra->lang!=SrcLangExt_Python &&
-					   yyextra->lang!=SrcLangExt_VHDL &&
-					   yyextra->lang!=SrcLangExt_Markdown &&
-					   yyextra->lang!=SrcLangExt_Fortran)
-				       {
- 				         ADDCHAR('*');
-     				         ADDCHAR('/');
-				       }
-    				     }
+                                     handleCondSectionId(yyscanner," "); // fake section id causing the section to be hidden unconditionally
 				     if (*yytext=='\n') yyextra->lineNr++;
-                                     if (yyextra->readLineCtx==SComment)
-                                     {
-                                       BEGIN(SComment);
-                                     }
-                                     else
-                                     {
-  				       BEGIN(yyextra->condCtx);
-                                     }
   				   }
 <CComment,ReadLine>[\\@][a-z_A-Z][a-z_A-Z0-9]*  { // expand alias without arguments
 				     replaceAliases(yyscanner,yytext);
@@ -936,24 +904,32 @@ static inline int computeIndent(const char *s)
 
 static inline void copyToOutput(yyscan_t yyscanner,const char *s,int len)
 {
+  int tabSize=Config_getInt(TAB_SIZE);
   struct yyguts_t *yyg = (struct yyguts_t*)yyscanner;
   int i;
   if (yyextra->skip) // only add newlines.
   {
-    for (i=0;i<len;i++) 
+    for (i=0;i<len;i++)
     {
-      if (s[i]=='\n') 
+      switch(s[i])
       {
-	ADDCHAR('\n');
-	//fprintf(stderr,"---> skip %d\n",g_lineNr);
-	yyextra->lineNr++;
+        case '\n':
+	  ADDCHAR('\n');
+	  yyextra->lineNr++;
+          yyextra->col=0;
+          break;
+        case '\t':
+          yyextra->col+=tabSize-(yyextra->col%tabSize);
+          break;
+        default:
+          yyextra->col++;
+          break;
       }
     }
   }
   else if (len>0)
   {
     ADDARRAY(s,len);
-    static int tabSize=Config_getInt(TAB_SIZE);
     for (i=0;i<len;i++) 
     {
       switch (s[i])
@@ -995,6 +971,33 @@ static void endCondSection(yyscan_t yyscanner)
     yyextra->skip=ctx->skip;
   }
   //printf("endCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
+}
+
+static void handleCondSectionId(yyscan_t yyscanner,const char *expression)
+{
+  struct yyguts_t *yyg = (struct yyguts_t*)yyscanner;
+  bool oldSkip=yyextra->skip;
+  startCondSection(yyscanner,expression);
+  if ((yyextra->condCtx==CComment || yyextra->readLineCtx==SComment) && 
+      !oldSkip && yyextra->skip) 
+  {
+    if (yyextra->lang!=SrcLangExt_Python &&
+        yyextra->lang!=SrcLangExt_VHDL &&
+        yyextra->lang!=SrcLangExt_Markdown &&
+        yyextra->lang!=SrcLangExt_Fortran)
+    {
+      ADDCHAR('*');
+      ADDCHAR('/');
+    }
+  }
+  if (yyextra->readLineCtx==SComment)
+  {
+    BEGIN(SComment);
+  }
+  else
+  {
+    BEGIN(yyextra->condCtx);
+  }
 }
 
 /** copies string \a s with length \a len to the output, while 
@@ -1093,6 +1096,9 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
   yyscan_t yyscanner;
   commentcnvYY_state extra;
   commentcnvYYlex_init_extra(&extra,&yyscanner);
+#ifdef FLEX_DEBUG
+  commentcnvYYset_debug(1,yyscanner);
+#endif
   struct yyguts_t *yyg = (struct yyguts_t*)yyscanner;
   //printf("convertCppComments(%s)\n",fileName);
   yyextra->inBuf    = inBuf;
@@ -1168,10 +1174,5 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
 
 
 //----------------------------------------------------------------------------
-#if !defined(YY_FLEX_SUBMINOR_VERSION) 
-extern "C" { // some bogus code to keep the compiler happy
-    void commentcnvYYdummy() { yy_flex_realloc(0,0); } 
-}
-#endif
 
 #include "commentcnv.l.h"
